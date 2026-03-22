@@ -1,0 +1,4 @@
+*.nb
+build/
+.vscode/
+to_hdf5/
