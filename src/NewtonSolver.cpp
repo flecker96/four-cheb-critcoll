@@ -15,13 +15,13 @@
 // Ctor: cache config scalars & sizes, allocate work arrays, construct helpers.
 // If MPI/Hybrid, also create a contiguous MPI type to send/recv vectors.
 //------------------------------------------------------------------------------
-NewtonSolver::NewtonSolver(SimulationConfig configIn, std::filesystem::path dataPathIn, bool benchmarkIn)
-    : config(configIn), Nt(configIn.Nt), Nx(configIn.Nx), Nnewton(configIn.Nt * configIn.Nx/2 - configIn.Nt/4), maxIts(configIn.MaxIterNewton), 
+NewtonSolver::NewtonSolver(SimulationConfig configIn, SimulationConfig& configOut, bool benchmarkIn)
+    : config(configIn), result(configOut), Nt(configIn.Nt), Nx(configIn.Nx), Nnewton(configIn.Nt * configIn.Nx/2 - configIn.Nt/4), maxIts(configIn.MaxIterNewton), 
     Dim(configIn.Dim), Delta(configIn.Delta), slowErr(configIn.SlowError), EpsNewton(configIn.EpsNewton), TolNewton(configIn.PrecisionNewton),
-    Debug(configIn.Debug), Verbose(configIn.Verbose), Converged(configIn.Converged), baseFolder(dataPathIn), benchmark(benchmarkIn), 
+    Debug(configIn.Debug), Verbose(configIn.Verbose), Converged(configIn.Converged), benchmark(benchmarkIn), 
     f(configIn.f), Om(configIn.Om), Pi(configIn.Pi), Psi(configIn.Psi),
-    packer(configIn.Nt, configIn.Nx, configIn.Dim, configIn.Delta),
-    evaluator(Nt, Nx, Dim, packer)
+    packer(configIn.Nt, configIn.Nx, configIn.Dim),
+    evaluator(configIn.Nt, configIn.Nx, configIn.Dim, packer)
 {
     // Work buffers
     in0.resize(Nnewton);
@@ -32,20 +32,12 @@ NewtonSolver::NewtonSolver(SimulationConfig configIn, std::filesystem::path data
     xGrid.resize(Nx);
     x_prime.resize(Nx);
     xGridHalf.resize(Nx / 2);
-
-    // Shooting ODE integrator (IRK) wrapper
-    /*shooter = std::make_unique<ShootingSolver>(configIn.Ntau, configIn.Dim,
-                                               configIn.PrecisionIRK, initGen, configIn.MaxIterIRK, configIn.SchemeIRK);*/
-    // ODE evaluation wrapper
-    /*evaluator = std::make_unique<EOMevaluator>(Nt, Nx, Dim, packer);*/
-    /*EOMevaluator evaluator(Nt, Nx, Dim, packer);*/
-
 }
 
 //------------------------------------------------------------------------------
 // run (Serial)
 //------------------------------------------------------------------------------
-SimulationConfig NewtonSolver::run(json* benchmark_result)
+void NewtonSolver::run(json* benchmark_result)
 {
     if (!Converged)
     {
@@ -56,6 +48,7 @@ SimulationConfig NewtonSolver::run(json* benchmark_result)
         packer.pack(f, Om, Pi, Psi, xGridHalf, in0);            //Build the vector in0 
         in0[3*Nt*Nx/8 + 2] = Delta;                             //Store Delta in slot for Re(fc_2) (gauged to zero)
 
+
         vec_real in0old = in0;
 
         for (size_t its=0; its<maxIts; ++its)
@@ -64,7 +57,7 @@ SimulationConfig NewtonSolver::run(json* benchmark_result)
             std::cout << "Newton iteration: " << its+1 << std::endl;
 
             errOld = err;
-           
+            
             shoot(in0, out0);
            
             err = computeL2Norm(out0);
@@ -86,7 +79,7 @@ SimulationConfig NewtonSolver::run(json* benchmark_result)
                 Converged = true;
                 Delta = in0old[3*Nt*Nx/8 + 2];
                 in0old[3*Nt*Nx/8 + 2] = 0.0;
-                packer.unpackSpectralFields(in0old, Up, psic, fc);
+                packer.NewtonToFields(in0old, xGridHalf, f, Om, Pi, Psi);
                 writeFinalOutput(its, errOld);
                 std::cerr << "Mismatch increased – terminating Newton.\n";
                 break;                    
@@ -134,7 +127,6 @@ SimulationConfig NewtonSolver::run(json* benchmark_result)
         writeFinalOutput(0, err);
     }
 
-    return result;
 }
 
 
@@ -155,7 +147,7 @@ void NewtonSolver::shoot(vec_real& inputVec, vec_real& outputVec, json* fieldVal
     packer.unpack(inputVec, xGridHalf, Yin); //Yin is in spectral space, doubled
     inputVec[3*Nt*Nx/8 + 2] = Delta;
 
-    //Take Yin (in spectral space), fRes,... are in real space
+    //Take Yin (in spectral space), evaluate EOM and condense
     evaluator.ComputeResidual(Yin, Delta, xGrid, outputVec);
 }
 
@@ -274,28 +266,22 @@ real_t NewtonSolver::computeL2Norm(const vec_real& vc)
 //------------------------------------------------------------------------------
 void NewtonSolver::writeFinalOutput(size_t newtonIts, real_t mismatchNorm)
 {
-    resultDict["Ntau"] = Nt;
-    resultDict["Dim"] = Dim;
-    resultDict["EpsNewton"] = EpsNewton;
-    resultDict["PrecisionNewton"] = TolNewton;
-    resultDict["SlowError"] = slowErr;
-    resultDict["MaxIterNewton"] = maxIts;
-    resultDict["Verbose"] = Verbose;
-    resultDict["Debug"] = config.Debug;
-    if (config.Debug)
-    {
-        resultDict["DebugNx"] = config.DebugNx;
-        resultDict["DebugNtau"] = config.DebugNtau;
-    }
-    resultDict["Converged"] = true;
-    resultDict["IterNewton"] = newtonIts;
-    resultDict["mismatchNorm"] = mismatchNorm;
+    result.f = f;
+    result.Om = Om;
+    result.Pi = Pi;
+    result.Psi = Psi;
 
-    // Store (Δ, fc, ψc, Up) that produced the final state
-    resultDict["Initial_Conditions"]["Delta"] = Delta;
-    resultDict["Initial_Conditions"]["fc"] = fc;
-    resultDict["Initial_Conditions"]["psic"] = psic;
-    resultDict["Initial_Conditions"]["Up"] = Up;
+    result.Nt = Nt;
+    result.Nx = Nx;
+    result.Dim = Dim;
+    result.Converged = Converged;
+
+    result.EpsNewton = EpsNewton;
+    result.PrecisionNewton = TolNewton;
+    result.SlowError = slowErr;
+    result.MaxIterNewton = maxIts;
+    result.IterNewton = newtonIts;
+    result.ErrorNorm = mismatchNorm;
 
     std::cout << "Final result stored in simulation dictionary for dimension D = " << Dim << "." << std::endl << std::endl;
    

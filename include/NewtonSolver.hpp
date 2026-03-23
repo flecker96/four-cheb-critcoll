@@ -43,6 +43,7 @@ class NewtonSolver
   private:
     // ===== Simulation state =====
     SimulationConfig config;      ///< Simulation parameters (dimension, Ntau, Δ, etc.)
+    SimulationConfig& result;
     size_t Nt, Nx;                  ///< Number of τ samples per period.
     size_t Nnewton;               ///< Number of Newton unknowns (typically 3*Ntau/4).
     size_t maxIts;                ///< Maximum Newton iterations.
@@ -57,16 +58,15 @@ class NewtonSolver
     bool Converged;               ///< True if Newton converged.
 
     // ===== Components =====
-    StatePacker packer;               ///< Generates near-boundary Taylor expansions.
-    EOMevaluator evaluator;
     vec_complex Yin;         ///< Packed state vectors at left/right boundaries.
+    bool benchmark;                    ///< If true, run in benchmark mode.
     vec_real f, Om, Pi, Psi;             ///< Boundary input functions (τ-dependent).
     vec_real fRes, OmRes, PiRes, PsiRes;
     vec_real xGrid, xGridHalf, x_prime;                    ///< Radial grid points (left → right).
     vec_real in0, out0;                ///< Working vectors for shooting I/O.
-    json resultDict;                   ///< Stores results for output/benchmark.
     std::filesystem::path baseFolder;  ///< Path where outputs are written.
-    bool benchmark;                    ///< If true, run in benchmark mode.
+    StatePacker packer;               ///< Generates near-boundary Taylor expansions.
+    EOMevaluator evaluator;
 
     /*std::unique_ptr<EOMevaluator> evaluator; ///< Integrator for evolution between boundaries.*/
 
@@ -110,14 +110,14 @@ class NewtonSolver
      * @param dataPathIn Base path for output files.
      * @param benchmarkIn If true, enable benchmark mode.
      */
-    NewtonSolver(SimulationConfig configIn, std::filesystem::path dataPathIn, bool benchmarkIn=false);
+    NewtonSolver(SimulationConfig configIn, SimulationConfig& configOut, bool benchmarkIn=false);
 
     /**
      * @brief Run Newton solver until convergence or max iterations.
      * @param benchmark_result Optional JSON to collect benchmark statistics.
      * @return JSON result dictionary with fields (Converged, NewtonIts, Delta, etc.).
      */
-    SimulationConfig run(json* benchmark_result=nullptr);
+    void run(json* benchmark_result=nullptr);
 
     /**
      * @brief Write final converged output and metadata to files.

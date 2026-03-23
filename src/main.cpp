@@ -1,6 +1,6 @@
 #include "common.hpp"
 #include "SimulationConfig.hpp"
-#include "SpectralTransformer.hpp"
+#include "NewtonSolver.hpp"
 
 void readDataset(H5::H5File& file, const std::string& name, std::vector<double>& data);
 void readAttribute(H5::H5File& file, const std::string& name, int& value);
@@ -17,10 +17,10 @@ int main(){
     std::string outputPath = "../to_hdf5/data_out.h5";
 
     SimulationConfig config = SimulationConfig::loadFromHDF5(inputPath);
-    /*SimulationConfig result = SimulationConfig::createHDF5(outputPath);
+    SimulationConfig result(config.Nt, config.Nx);
 
-    NewtonSolver solver(config);
-    result = solver.run();*/
+    NewtonSolver solver(config, result);
+    solver.run();
 
     //*************************************************** */
     try {
@@ -50,28 +50,15 @@ int main(){
 
     
 
-    Z.resize(Nt * Nx);
+    /*Z.resize(Nt * Nx);
 
-    SpectralTransformer st(Nt, Nx, Delta);
+    SpectralTransformer st(Nt, Nx);
 
 
     for(int i=0;i<(Nt * Nx);i++){
-        /*Z[i] = complex_t(Om[i] + Pi[i], f[i] + Psi[i]);*/
         Z[i] = complex_t(f[i], Pi[i]);
     }
 
-
-
-    /*st.forwardFFT_time(Z, Zout);
-
-    st.differentiate_t(Zout, Zout, Delta);
-    
-    st.backwardFFT_time(Zout, Zout);
-
-
-    for(int i=0;i<(Nt);i++){
-        std::cout << std::setprecision(15)<< Zout[Nx*i + 20].real() << ", " << Zout[Nx*i + 20].imag() << std::endl;
-    }*/
 
     st.forwardDCT_space(Z, Zout);
     st.backwardDCT_space2(Zout);
@@ -80,7 +67,7 @@ int main(){
     for(int i=0;i<(Nt);i++){
         std::cout << std::setprecision(15)<< (Z[Nx-1+i*Nx] - Zout[Nx-1+i*Nx]).real() << ", " << (Z[Nx-1+i*Nx] - Zout[Nx-1+i*Nx]).imag() << std::endl;
     }
-
+    */
     /*st.differentiate_x(Zout, Zout2);*/
 
 

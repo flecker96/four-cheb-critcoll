@@ -84,7 +84,7 @@ class StatePacker
      *
      * @note The internal SpectralTransformer is initialized with (Ntau_, Δ).
      */
-    StatePacker(size_t Nt_, size_t Nx_, real_t Dim_, real_t Delta_);
+    StatePacker(size_t Nt_, size_t Nx_, real_t Dim_);
 
     void pack(const vec_real& f, const vec_real& Om, const vec_real& Pi, const vec_real& Psi,
               const vec_real& x2, vec_real& vec);
@@ -94,6 +94,8 @@ class StatePacker
     void buildFields(const vec_complex& Y, real_t Delta, vec_real& f, vec_real& Om, vec_real& Pi , vec_real& Psi, 
                     vec_real& dtf, vec_real& dtOm, vec_real& dtPi , vec_real& dtPsi,
                     vec_real& dxf, vec_real& dxOm, vec_real& dxPi , vec_real& dxPsi);
+
+    void NewtonToFields(const vec_real& vec, const vec_real& x2, vec_real& f, vec_real& Om, vec_real& Pi, vec_real& Psi);
 
     void condenseResidual(const vec_real& fRes, const vec_real& OmRes, 
                           const vec_real& PiRes, const vec_real& PsiRes, vec_real& vec);

@@ -39,11 +39,21 @@ struct SimulationConfig
     int Nt, Nx;
     real_t Dim;
     real_t EpsNewton, PrecisionNewton, SlowError;
-    int    MaxIterNewton;
+    int    MaxIterNewton, IterNewton;
     bool   Verbose, Debug, Converged;
     size_t DebugNx, DebugNtau;
-    real_t Delta;
+    real_t Delta, ErrorNorm;
     vec_real f, Om, Pi, Psi;
+
+    
+    SimulationConfig(int Nt_, int Nx_)
+        : Nt(Nt_), Nx(Nx_)
+    {
+        f.resize(Nx * Nt);
+        Om.resize(Nx * Nt);
+        Pi.resize(Nx * Nt);
+        Psi.resize(Nx * Nt);
+    }
 
     /**
      * @brief Construct from a JSON object.
@@ -72,6 +82,11 @@ struct SimulationConfig
         readAttribute(file, "Nx", Nx);
         readAttribute(file, "Nt", Nt);
         readAttribute(file, "Dim", Dim);
+        readAttribute(file, "MaxIterNewton", MaxIterNewton);
+        readAttribute(file, "EpsNewton", EpsNewton);
+        readAttribute(file, "TolNewton", PrecisionNewton);
+        readAttribute(file, "slowErr", SlowError);
+        readAttribute(file, "Converged", Converged);
 
         f.resize(Nx * Nt);
         Om.resize(Nx * Nt);
@@ -112,6 +127,12 @@ struct SimulationConfig
     {
         H5::Attribute attr = file.openAttribute(name);
         attr.read(H5::PredType::NATIVE_DOUBLE, &value);
+    }
+
+    void readAttribute(H5::H5File& file, const std::string& name, bool& value)
+    {
+        H5::Attribute attr = file.openAttribute(name);
+        attr.read(H5::PredType::NATIVE_HBOOL, &value);
     }
 
     /**

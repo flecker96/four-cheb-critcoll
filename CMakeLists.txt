@@ -30,7 +30,10 @@ find_library(LAPACKE_LIB lapacke)  # C interface
 set(SOURCES
     src/main.cpp
     src/common.cpp
+    src/NewtonSolver.cpp
     src/SpectralTransformer.cpp
+    src/StatePacker.cpp
+    src/EOMevaluator.cpp
 )
 
 add_executable(a ${SOURCES})
