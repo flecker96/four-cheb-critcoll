@@ -43,13 +43,13 @@ struct SimulationConfig
     bool   Verbose, Debug, Converged;
     size_t DebugNx, DebugNtau;
     real_t Delta, ErrorNorm;
-    vec_real f, Om, Pi, Psi;
+    vec_real F, Om, Pi, Psi;
 
     
     SimulationConfig(int Nt_, int Nx_)
         : Nt(Nt_), Nx(Nx_)
     {
-        f.resize(Nx * Nt);
+        F.resize(Nx * Nt);
         Om.resize(Nx * Nt);
         Pi.resize(Nx * Nt);
         Psi.resize(Nx * Nt);
@@ -88,12 +88,12 @@ struct SimulationConfig
         readAttribute(file, "slowErr", SlowError);
         readAttribute(file, "Converged", Converged);
 
-        f.resize(Nx * Nt);
+        F.resize(Nx * Nt);
         Om.resize(Nx * Nt);
         Pi.resize(Nx * Nt);
         Psi.resize(Nx * Nt);
 
-        readDataset(file, "f", f);
+        readDataset(file, "F", F);
         readDataset(file, "Om", Om);
         readDataset(file, "Pi", Pi);
         readDataset(file, "Psi", Psi);
@@ -162,7 +162,7 @@ struct SimulationConfig
         std::cout << "DebugNtau: " << DebugNtau << std::endl;
         std::cout << "Converged: " << Converged << std::endl;
         std::cout << "Delta: " << Delta << std::endl;
-        std::cout << "f is not empty: " << !f.empty() << std::endl;
+        std::cout << "f is not empty: " << !F.empty() << std::endl;
         std::cout << "Om is not empty: " << !Om.empty() << std::endl;
         std::cout << "Pi is not empty: " << !Pi.empty() << std::endl;
         std::cout << "Psi is not empty: " << !Psi.empty() << std::endl;

@@ -19,7 +19,7 @@ NewtonSolver::NewtonSolver(SimulationConfig configIn, SimulationConfig& configOu
     : config(configIn), result(configOut), Nt(configIn.Nt), Nx(configIn.Nx), Nnewton(configIn.Nt * configIn.Nx/2 - configIn.Nt/4), maxIts(configIn.MaxIterNewton), 
     Dim(configIn.Dim), Delta(configIn.Delta), slowErr(configIn.SlowError), EpsNewton(configIn.EpsNewton), TolNewton(configIn.PrecisionNewton),
     Debug(configIn.Debug), Verbose(configIn.Verbose), Converged(configIn.Converged), benchmark(benchmarkIn), 
-    f(configIn.f), Om(configIn.Om), Pi(configIn.Pi), Psi(configIn.Psi),
+    F(configIn.F), Om(configIn.Om), Pi(configIn.Pi), Psi(configIn.Psi),
     packer(configIn.Nt, configIn.Nx, configIn.Dim),
     evaluator(configIn.Nt, configIn.Nx, configIn.Dim, packer)
 {
@@ -45,7 +45,7 @@ void NewtonSolver::run(json* benchmark_result)
         int mismatch_increase_count {};
 
         generateGrid();
-        packer.pack(f, Om, Pi, Psi, xGridHalf, in0);            //Build the vector in0 
+        packer.pack(F, Om, Pi, Psi, in0);            //Build the vector in0 
         in0[3*Nt*Nx/8 + 2] = Delta;                             //Store Delta in slot for Re(fc_2) (gauged to zero)
 
 

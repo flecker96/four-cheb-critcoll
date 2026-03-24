@@ -60,7 +60,7 @@ class NewtonSolver
     // ===== Components =====
     vec_complex Yin;         ///< Packed state vectors at left/right boundaries.
     bool benchmark;                    ///< If true, run in benchmark mode.
-    vec_real f, Om, Pi, Psi;             ///< Boundary input functions (τ-dependent).
+    vec_real F, Om, Pi, Psi;             ///< Boundary input functions (τ-dependent).
     vec_real fRes, OmRes, PiRes, PsiRes;
     vec_real xGrid, xGridHalf, z_prime;                    ///< Radial grid points (left → right).
     vec_real in0, out0;                ///< Working vectors for shooting I/O.
