@@ -12,10 +12,10 @@ class EOMevaluator
     StatePacker& packer;               ///< Generates near-boundary Taylor expansions.
     
     // ======== Auxiliary ==============
-    vec_real f, Om, Pi, Psi;
-    vec_real dtf, dtOm, dtPi, dtPsi;
-    vec_real dxf, dxOm, dxPi, dxPsi;
-    vec_real fRes, OmRes, PiRes, PsiRes;
+    vec_real F, Om, Pi, Psi;
+    vec_real dtF, dtOm, dtPi, dtPsi;
+    vec_real dxF, dxOm, dxPi, dxPsi;
+    vec_real FRes, OmRes, PiRes, PsiRes;
 
   public:
 

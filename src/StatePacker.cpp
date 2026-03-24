@@ -18,14 +18,14 @@
 // Initializes the internal FFT helper with (Nt, Delta).
 //------------------------------------------------------------------------------
 StatePacker::StatePacker(size_t Nt_, size_t Nx_, real_t Dim_)
-    : Nt(Nt_), Nx(Nx_), Nnewton(Nt_* Nx_ / 2 - Nt_ / 4), Dim(Dim_), fft(Nt_, Nx_)
+    : Nt(Nt_), Nx(Nx_), Nnewton(Nt_* Nx_ / 2), Dim(Dim_), fft(Nt_, Nx_)
     {
         //Work buffers
-        fF.resize(Nt*Nx/4);
+        FF.resize(Nt*Nx/4);
         OmF.resize(Nt*Nx/4);
         PiF.resize(Nt*Nx/4);
         PsiF.resize(Nt*Nx/4);
-        ftmp.resize(Nt*Nx);
+        Ftmp.resize(Nt*Nx);
         Omtmp.resize(Nt*Nx);
         Pitmp.resize(Nt*Nx);
         Psitmp.resize(Nt*Nx);
@@ -47,20 +47,19 @@ StatePacker::StatePacker(size_t Nt_, size_t Nx_, real_t Dim_)
 //           plus a special high-frequency cosine scalar at Z[2*Nnewton/3+1].
 //------------------------------------------------------------------------------
 void StatePacker::pack(
-    const vec_real& f, const vec_real& Om, const vec_real& Pi, const vec_real& Psi,
-    const vec_real& x2, vec_real& vec)
+    const vec_real& F, const vec_real& Om, const vec_real& Pi, const vec_real& Psi, vec_real& vec)
 {
     for(size_t i=0; i<Nt*Nx; i++){
-        ftmp[i] = f[i];
+        Ftmp[i] = F[i];
         Omtmp[i] = Om[i];
         Pitmp[i] = Pi[i];
         Psitmp[i] = Psi[i];
     }
 
-    fft.forwardFFT_time2(ftmp);
-    fft.forwardDCT_space2(ftmp); 
-    fft.halveModes(ftmp, fF);
-    fft.backwardChebHalf(fF);
+    fft.forwardFFT_time2(Ftmp);
+    fft.forwardDCT_space2(Ftmp); 
+    fft.halveModes(Ftmp, FF);
+    fft.backwardChebHalf(FF);
 
     fft.forwardFFT_time2(Omtmp);
     fft.forwardDCT_space2(Omtmp);
@@ -83,72 +82,28 @@ void StatePacker::pack(
         throw std::runtime_error("pack: wrong size of output vector");
 
 
-    //the boundary points i=0 and i=Nx/2-1 are treated separately in the following
     for (size_t i=0; i<Nx/2; ++i)
     {
-        if (i==0) 
+        //Fill in
+        for (size_t j=0; j<Nt/8; ++j)
         {
-            //Fill in fc, Omc, Pic and Psic
-            for (size_t j=0; j<Nt/8; ++j)
-            {
-                //Pic
-                vec[2*j + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].real();
-                vec[2*j + 1 + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].imag();
-                //Psic
-                vec[2*j + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
-                vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
-                //Om
-                vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
-                vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
-                //f
-                vec[2*j + Nt*i/4 + 3*Nt*Nx/8] = fF[(Nx/2)*(2*j) + i].real();
-                vec[2*j + 1 + Nt*i/4 + 3*Nt*Nx/8] = fF[(Nx/2)*(2*j) + i].imag();
-            }
+            //Pi
+            vec[2*j + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].real();
+            vec[2*j + 1 + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].imag();
+            //Psi
+            vec[2*j + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
+            vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
+            //Om
+            vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
+            vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
+            //F
+            vec[2*j + Nt*i/4 + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].real();
+            vec[2*j + 1 + Nt*i/4 + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].imag();
+        }
 
-            //Nyquist
-            vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real();  //Store HF cosine in imaginary part of zero mode
-            vec[1 + Nt*i/4 + 3*Nt*Nx/8] = fF[(Nx/2)*(2*Nt/8) + i].real();
-
-        }
-        // at this boundary point (SSH) nothing is stored for f since it is 1 there
-        else if (i == Nx/2-1)
-        {
-            for (size_t j=0; j<Nt/8; ++j)
-                {
-                    //PI = (Pi - Pic)/x^2 for all values except at x=0
-                    vec[2*j + (Nt/4)*i] = (PiF[(Nx/2)*(2*j + 1) + i].real() - PiF[(Nx/2)*(2*j + 1)].real() ) / (x2[i]*x2[i]);
-                    vec[2*j + 1 + (Nt/4)*i] = (PiF[(Nx/2)*(2*j + 1) + i].imag() - PiF[(Nx/2)*(2*j + 1)].imag() ) / (x2[i]*x2[i]);
-                    //PSI (same)
-                    vec[2*j + Nt*i/4 + Nt*Nx/8] = (PsiF[(Nx/2)*(2*j + 1) + i].real() - PsiF[(Nx/2)*(2*j + 1)].real() ) / (x2[i]*x2[i]);
-                    vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = (PsiF[(Nx/2)*(2*j + 1) + i].imag() - PsiF[(Nx/2)*(2*j + 1)].imag() ) / (x2[i]*x2[i]);
-                    //Om (no bc)
-                    vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
-                    vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
-                }
-            // Nyquist for Om
-            vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real();
-        }
-        else 
-        {
-            for (size_t j=0; j<Nt/8; ++j)
-                {
-                    //PI = (Pi - Pic)/x^2 for all values except at x=0
-                    vec[2*j + (Nt/4)*i] = (PiF[(Nx/2)*(2*j + 1) + i].real() - PiF[(Nx/2)*(2*j + 1)].real() ) / (x2[i]*x2[i]);
-                    vec[2*j + 1 + (Nt/4)*i] = (PiF[(Nx/2)*(2*j + 1) + i].imag() - PiF[(Nx/2)*(2*j + 1)].imag() ) / (x2[i]*x2[i]);
-                    //PSI (same)
-                    vec[2*j + Nt*i/4 + Nt*Nx/8] = (PsiF[(Nx/2)*(2*j + 1) + i].real() - PsiF[(Nx/2)*(2*j + 1)].real() ) / (x2[i]*x2[i]);
-                    vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = (PsiF[(Nx/2)*(2*j + 1) + i].imag() - PsiF[(Nx/2)*(2*j + 1)].imag() ) / (x2[i]*x2[i]);
-                    //Om (no bc)
-                    vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
-                    vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
-                    //F = ( (f-1)/(1-x)*e^-x - fc + 1 ) / x^2
-                    vec[2*j + Nt*i/4 + 3*Nt*Nx/8] = ((fF[(Nx/2)*(2*j) + i].real() - 1.0)/(1.0 - x2[i])*exp(-x2[i]) - fF[(Nx/2)*(2*j)].real() + 1.0) / (x2[i]*x2[i]);
-                    vec[2*j + 1 + Nt*i/4 + 3*Nt*Nx/8] = ((fF[(Nx/2)*(2*j) + i].imag() - 1.0)/((1.0 - x2[i])*exp(x2[i])) - fF[(Nx/2)*(2*j)].imag() + 1.0) / (x2[i]*x2[i]);
-                }
-            //Nyquist
-            vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real();
-            vec[1 + Nt*i/4 + 3*Nt*Nx/8] = ((fF[(Nx/2)*(2*Nt/8) + i].real() - 1.0)/((1.0 - x2[i])*exp(x2[i])) - fF[(Nx/2)*(2*Nt/8)].real() + 1.0) / (x2[i]*x2[i]);
-        }
+        //Nyquist
+        vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real();  //Store HF cosine in imaginary part of zero mode
+        vec[1 + Nt*i/4 + 3*Nt*Nx/8] = FF[(Nx/2)*(2*Nt/8) + i].real();
     }
     
 }
@@ -156,22 +111,20 @@ void StatePacker::pack(
 // This takes a Newton inputvector vec, storing 
 // (RePic1, ImPic1, RePic3, ImPic3, ..., RePi(Nx/2-1)(Nt/4-1), ImPi(Nx/2-1)(Nt/4-1), [Psi], [Om], Refc0, ReFcN/2, 0, Imfc2, Refc4, Imfc4, ... )
 // in halved variables in x-omega space and builds the fields. build fields with bcs. pad with zeros for antialiasing, output Y in spectral space for building derivatives next. 
-void StatePacker::unpack(const vec_real& vec, const vec_real& x2, vec_complex& Y)
+void StatePacker::unpack(const vec_real& vec, vec_complex& Y)
 {
     //Fill halved vectors in x-omega space with zeros
     std::fill(PiF.begin(), PiF.end(), complex_t(0.0));
     std::fill(PsiF.begin(), PsiF.end(), complex_t(0.0));
     std::fill(OmF.begin(), OmF.end(), complex_t(0.0));
-    std::fill(fF.begin(), fF.end(), complex_t(0.0));
+    std::fill(FF.begin(), FF.end(), complex_t(0.0));
 
     if (Y.size() != Nt*Nx)
         throw std::runtime_error("unpack: wrong size of output vector");
 
     for (size_t i=0; i<Nx/2; ++i){
-            if (i==0)
+            for (size_t j=0; j<Nt/8; ++j)
             {
-               for (size_t j=0; j<Nt/8; ++j)
-                {
                 // Pi: take values of Z (in x-om space) and build contiguous vector Pi (Nt/2 joined blocks of length Nx/2 each)
                 // i=0 (x=0) is special: use stored value of pic for this
                 PiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + i*Nt/4], vec[2*j + 1 + i*Nt/4]);
@@ -186,62 +139,22 @@ void StatePacker::unpack(const vec_real& vec, const vec_real& x2, vec_complex& Y
                 if (j!=0) OmF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(OmF[(2*j)*Nx/2 + i]);
 
                 // i=0 (x=0) is special: use stored value of fc for this
-                fF[(2*j)*Nx/2 + i] = complex_t(vec[2*j + i*Nt/4 + 3*Nt*Nx/8], vec[2*j+1 + i*Nt/4 + 3*Nt*Nx/8]);
-                if (j!=0) fF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(fF[(2*j)*Nx/2 + i]);
-                }
-            }
-            
-
-            else if (i==(Nx/2-1)) 
-            {
-                for (size_t j=0; j<Nt/8; ++j)
-                {
-                    // Pi: take values of vec (in x-om space) and build contiguous vector Pi (Nt/2 joined blocks of length Nx/2 each)
-                    // for the other i>0 implement regularity condition (\partial _x pi =0)
-                    PiF[(2*j + 1)*Nx/2 + i]        = PiF[(2*j + 1)*Nx/2] + x2[i] * x2[i] * complex_t(vec[2*j + i*Nt/4], vec[2*j+1 + i*Nt/4]);
-                    PiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = PiF[(Nt/2 - 2*j - 1)*Nx/2] + x2[i] * x2[i] * std::conj(PiF[(2*j + 1)*Nx/2 + i]);
-                    // for the other i>0 implement regularity condition (\partial _x psi =0)
-                    PsiF[(2*j + 1)*Nx/2 + i]        = PsiF[(2*j + 1)*Nx/2] + x2[i] * x2[i] * complex_t(vec[2*j + i*Nt/4 + Nt*Nx/8], vec[2*j+1 + i*Nt/4 + Nt*Nx/8]);
-                    PsiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = PsiF[(Nt/2 - 2*j - 1)*Nx/2] + x2[i] * x2[i] * std::conj(PsiF[(2*j + 1)*Nx/2 + i]);
-                    // Om can be done in one go
-                    OmF[(2*j)*Nx/2 + i]  = complex_t(vec[2*j + i*Nt/4 + Nt*Nx/4], vec[2*j+1 + i*Nt/4 + Nt*Nx/4]);
-                    if (j!=0) OmF[(Nt/2 - 2*j)*Nx/2 + i]    = std::conj(OmF[(2*j)*Nx/2 + i]);
-                    //Set f to 1 at SSH, i.e. only switch on zero mode
-                    if (j==0) fF[(2*j)*Nx/2 + i] = complex_t(1.0, 0.0);
-                }
-            }
-            else {
-                for (size_t j=0; j<Nt/8; ++j)
-                {
-                    // Pi: take values of vec (in x-om space) and build contiguous vector Pi (Nt/2 joined blocks of length Nx/2 each)
-                    // for the other i>0 implement regularity condition (\partial _x pi =0)
-                    PiF[(2*j + 1)*Nx/2 + i]        = PiF[(2*j + 1)*Nx/2] + x2[i] * x2[i] * complex_t(vec[2*j + i*Nt/4], vec[2*j+1 + i*Nt/4]);
-                    PiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = PiF[(Nt/2 - 2*j - 1)*Nx/2] + x2[i] * x2[i] * std::conj(PiF[(2*j + 1)*Nx/2 + i]);
-                    // for the other i>0 implement regularity condition (\partial _x psi =0)
-                    PsiF[(2*j + 1)*Nx/2 + i]        = PsiF[(2*j + 1)*Nx/2] + x2[i] * x2[i] * complex_t(vec[2*j + i*Nt/4 + Nt*Nx/8], vec[2*j+1 + i*Nt/4 + Nt*Nx/8]);
-                    PsiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = PsiF[(Nt/2 - 2*j - 1)*Nx/2] + x2[i] * x2[i] * std::conj(PsiF[(2*j + 1)*Nx/2 + i]);
-                    // Om can be done in one go, no seperate regularity condition needed
-                    OmF[(2*j)*Nx/2 + i]  = complex_t(vec[2*j + i*Nt/4 + Nt*Nx/4], vec[2*j+1 + i*Nt/4 + Nt*Nx/4]);
-                    if (j!=0) OmF[(Nt/2 - 2*j)*Nx/2 + i]    = std::conj(OmF[(2*j)*Nx/2 + i]);
-                    //build f by f=1+(1-x) * e^x * (fc - 1 + x^2 F(x))
-                    fF[(2*j)*Nx/2 + i] = 1.0 + (1.0 - x2[i])*exp(x2[i])*(fF[(2*j)*Nx/2] - 1.0 + x2[i]*x2[i]*complex_t(vec[2*j + i*Nt/4 + 3*Nt*Nx/8], vec[2*j+1 + i*Nt/4 + 3*Nt*Nx/8]));
-                    if (j!=0) 
-                        fF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(fF[(2*j)*Nx/2 + i]);
-                }
+                FF[(2*j)*Nx/2 + i] = complex_t(vec[2*j + i*Nt/4 + 3*Nt*Nx/8], vec[2*j+1 + i*Nt/4 + 3*Nt*Nx/8]);
+                if (j!=0) FF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(FF[(2*j)*Nx/2 + i]);
             }
         
         //Store Nyquist back where it belongs and make DC component purely real again
         OmF[(Nt/4)*Nx/2 + i] = complex_t(OmF[i].imag());
         OmF[i] = complex_t(OmF[i].real());
 
-        fF[(Nt/4)*Nx/2 + i] = complex_t(fF[i].imag());
-        fF[i] = complex_t(fF[i].real());        
+        FF[(Nt/4)*Nx/2 + i] = complex_t(FF[i].imag());
+        FF[i] = complex_t(FF[i].real());        
        
     }
     
-    //build state vector
+    //build state vector and double
     for (size_t i=0; i<Nt*Nx/4; ++i) {
-        tmp[i] = fF[i] + PiF[i] + complex_t(0.0, 1.0)*(OmF[i] + PsiF[i]);
+        tmp[i] = FF[i] + PiF[i] + complex_t(0.0, 1.0)*(OmF[i] + PsiF[i]);
     }
 
     fft.forwardChebHalf(tmp);
@@ -253,16 +166,16 @@ void StatePacker::condenseResidual(const vec_real& fRes, const vec_real& OmRes, 
 {
     //convert into complex vectors
     for(size_t i=0; i<Nt*Nx; i++){
-        ftmp[i] = fRes[i];
+        Ftmp[i] = fRes[i];
         Omtmp[i] = OmRes[i];
         Pitmp[i] = PiRes[i];
         Psitmp[i] = PsiRes[i];
     }
 
-    fft.forwardFFT_time2(ftmp);
-    fft.forwardDCT_space2(ftmp);
-    fft.halveModes(ftmp, fF);
-    fft.backwardChebHalf(fF);
+    fft.forwardFFT_time2(Ftmp);
+    fft.forwardDCT_space2(Ftmp);
+    fft.halveModes(Ftmp, FF);
+    fft.backwardChebHalf(FF);
 
     fft.forwardFFT_time2(Omtmp);
     fft.forwardDCT_space2(Omtmp);
@@ -285,52 +198,34 @@ void StatePacker::condenseResidual(const vec_real& fRes, const vec_real& OmRes, 
 
     for (size_t i=0; i<Nx/2; ++i)
     {
-        if (i==0)
+       
+        for (size_t j=0; j<Nt/8; ++j)
         {
-            for (size_t j=0; j<Nt/8; ++j)
-            {
-                //PI
-                vec[2*j + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].real();
-                vec[2*j + 1 + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].imag();
-                //PSI
-                vec[2*j + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
-                vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
-                //Om 
-                vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
-                vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
-            }
-        }
-        else
-        {
-            for (size_t j=0; j<Nt/8; ++j)
-            {
-                //PI
-                vec[2*j + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].real();
-                vec[2*j + 1 + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].imag();
-                //PSI
-                vec[2*j + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
-                vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
-                //Om 
-                vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
-                vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
-                //f ; the eom at the center (x=0) is not used
-                vec[2*j + (Nt/4)*(i-1) + 3*Nt*Nx/8] = fF[(Nx/2)*(2*j) + i].real();
-                vec[2*j + 1 + (Nt/4)*(i-1) + 3*Nt*Nx/8] = fF[(Nx/2)*(2*j) + i].imag();
-            }
+            //PI
+            vec[2*j + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].real();
+            vec[2*j + 1 + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].imag();
+            //PSI
+            vec[2*j + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
+            vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
+            //Om 
+            vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
+            vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
+            //f ; the eom at the center (x=0) is not used
+            vec[2*j + (Nt/4)*(i-1) + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].real();
+            vec[2*j + 1 + (Nt/4)*(i-1) + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].imag();
         }
         
         //Nyquist
-        vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real();
-        if (i != 0){ 
-            vec[1 + (Nt/4)*(i-1) + 3*Nt*Nx/8] = fF[(Nx/2)*(2*Nt/8) + i].real();
-        }
+        vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real(); 
+        vec[1 + (Nt/4)*(i-1) + 3*Nt*Nx/8] = FF[(Nx/2)*(2*Nt/8) + i].real();
+        
     }
 
 }
 
-void StatePacker::buildFields(const vec_complex& Yin, real_t Delta, vec_real& f, vec_real& Om, vec_real& Pi, vec_real& Psi, 
-                            vec_real& dtf, vec_real& dtOm, vec_real& dtPi, vec_real& dtPsi, 
-                            vec_real& dxf, vec_real& dxOm, vec_real& dxPi, vec_real& dxPsi)
+void StatePacker::buildFields(const vec_complex& Yin, real_t Delta, vec_real& F, vec_real& Om, vec_real& Pi, vec_real& Psi, 
+                            vec_real& dtF, vec_real& dtOm, vec_real& dtPi, vec_real& dtPsi, 
+                            vec_real& dxF, vec_real& dxOm, vec_real& dxPi, vec_real& dxPsi)
 {
 
     for (size_t i=0; i<Nt*Nx; ++i){
@@ -348,19 +243,19 @@ void StatePacker::buildFields(const vec_complex& Yin, real_t Delta, vec_real& f,
     fft.backwardFFT_time2(dtY);
     fft.backwardFFT_time2(dxY);
 
-    StateVectorToFields(Y, f, Om, Pi, Psi);
-    StateVectorToFields(dtY, dtf, dtOm, dtPi, dtPsi);
-    StateVectorToFields(dxY, dxf, dxOm, dxPi, dxPsi);
+    StateVectorToFields(Y, F, Om, Pi, Psi);
+    StateVectorToFields(dtY, dtF, dtOm, dtPi, dtPsi);
+    StateVectorToFields(dxY, dxF, dxOm, dxPi, dxPsi);
     
 }
 
-void StatePacker::NewtonToFields(const vec_real& vec, const vec_real& x2, vec_real& f, vec_real& Om, vec_real& Pi, vec_real& Psi)
+void StatePacker::NewtonToFields(const vec_real& vec, vec_real& F, vec_real& Om, vec_real& Pi, vec_real& Psi)
 {
-    unpack(vec, x2, Y);
+    unpack(vec, Y);
     fft.backwardDCT_space2(Y);
     fft.backwardFFT_time2(Y);
 
-    StateVectorToFields(Y, f, Om, Pi, Psi);
+    StateVectorToFields(Y, F, Om, Pi, Psi);
 }
 
 //------------------------------------------------------------------------------

@@ -16,7 +16,7 @@
 // If MPI/Hybrid, also create a contiguous MPI type to send/recv vectors.
 //------------------------------------------------------------------------------
 NewtonSolver::NewtonSolver(SimulationConfig configIn, SimulationConfig& configOut, bool benchmarkIn)
-    : config(configIn), result(configOut), Nt(configIn.Nt), Nx(configIn.Nx), Nnewton(configIn.Nt * configIn.Nx/2 - configIn.Nt/4), maxIts(configIn.MaxIterNewton), 
+    : config(configIn), result(configOut), Nt(configIn.Nt), Nx(configIn.Nx), Nnewton(configIn.Nt * configIn.Nx/2), maxIts(configIn.MaxIterNewton), 
     Dim(configIn.Dim), Delta(configIn.Delta), slowErr(configIn.SlowError), EpsNewton(configIn.EpsNewton), TolNewton(configIn.PrecisionNewton),
     Debug(configIn.Debug), Verbose(configIn.Verbose), Converged(configIn.Converged), benchmark(benchmarkIn), 
     F(configIn.F), Om(configIn.Om), Pi(configIn.Pi), Psi(configIn.Psi),
@@ -46,8 +46,7 @@ void NewtonSolver::run(json* benchmark_result)
 
         generateGrid();
         packer.pack(F, Om, Pi, Psi, in0);            //Build the vector in0 
-        in0[3*Nt*Nx/8 + 2] = Delta;                             //Store Delta in slot for Re(fc_2) (gauged to zero)
-
+        in0[3*Nt*Nx/8 + 2] = Delta;                  //Store Delta in slot for Re(Fc_2) (gauged to zero)
 
         vec_real in0old = in0;
 
@@ -55,6 +54,7 @@ void NewtonSolver::run(json* benchmark_result)
         {
             
             std::cout << "Newton iteration: " << its+1 << std::endl;
+            auto toc_outer = std::chrono::high_resolution_clock::now();
 
             errOld = err;
             
@@ -79,7 +79,7 @@ void NewtonSolver::run(json* benchmark_result)
                 Converged = true;
                 Delta = in0old[3*Nt*Nx/8 + 2];
                 in0old[3*Nt*Nx/8 + 2] = 0.0;
-                packer.NewtonToFields(in0old, xGridHalf, f, Om, Pi, Psi);
+                packer.NewtonToFields(in0old, F, Om, Pi, Psi);
                 writeFinalOutput(its, errOld);
                 std::cerr << "Mismatch increased – terminating Newton.\n";
                 break;                    
@@ -91,10 +91,11 @@ void NewtonSolver::run(json* benchmark_result)
             
 
             // Solve J·dx = −res and update input with damping
+
             vec_real dx(Nnewton);
             vec_real rhs = out0;
             std::for_each(rhs.begin(), rhs.end(), [](auto& e){ e *= -1.0; });
-
+            std::cerr << "Inverting Jacobian...\n";
             solveLinearSystem(J, rhs, dx);
 
             fac = std::min(1.0, slowErr / err);
@@ -107,10 +108,19 @@ void NewtonSolver::run(json* benchmark_result)
             
             for (size_t i=0; i<Nnewton; ++i) in0[i] += fac * dx[i];
 
+            auto tic_outer = std::chrono::high_resolution_clock::now();
+            std::cout << "Time for Newton Iteration: " << static_cast<real_t>((tic_outer-toc_outer).count()) / 1e9
+              << " s." << std::endl << std::endl;
+
         }
 
         if (!Converged)
         {
+            Converged = false;
+            Delta = in0old[3*Nt*Nx/8 + 2];
+            in0old[3*Nt*Nx/8 + 2] = 0.0;
+            packer.NewtonToFields(in0old, F, Om, Pi, Psi);
+            writeFinalOutput(maxIts, errOld);
             std::cerr << "Newton method did not converge in " << maxIts << " iterations. For dimension: " << Dim << std::endl;
             std::exit(EXIT_FAILURE);
         }
@@ -119,7 +129,7 @@ void NewtonSolver::run(json* benchmark_result)
     {
         // Already converged: recompute residual for logging and store output
         generateGrid();
-        packer.pack(f, Om, Pi, Psi, xGridHalf, in0);
+        packer.pack(F, Om, Pi, Psi, in0);
         in0[3*Nt*Nx/8 + 2] = Delta;
         shoot(in0, out0);
         real_t err = computeL2Norm(out0);
@@ -140,12 +150,12 @@ void NewtonSolver::run(json* benchmark_result)
 //------------------------------------------------------------------------------
 void NewtonSolver::shoot(vec_real& inputVec, vec_real& outputVec, json* fieldVals)
 {
-    // Extract Δ stored in the slot of in0 where Re(fc_2) is
+    // Extract Δ stored in the slot of in0 where Re(Fc_2) is
     Delta = inputVec[3*Nt*Nx/8 + 2];
     inputVec[3*Nt*Nx/8 + 2] = 0.0;
 
-    packer.unpack(inputVec, xGridHalf, Yin); //Yin is in spectral space, doubled
-    inputVec[3*Nt*Nx/8 + 2] = Delta;
+    packer.unpack(inputVec, Yin); //Yin is in spectral space, doubled
+    inputVec[3*Nt*Nx/8 + 2] = Delta; //write Delta back to original slot
 
     //Take Yin (in spectral space), evaluate EOM and condense
     evaluator.ComputeResidual(Yin, Delta, xGrid, z_prime, outputVec);
@@ -161,7 +171,7 @@ void NewtonSolver::shoot(vec_real& inputVec, vec_real& outputVec, json* fieldVal
 //------------------------------------------------------------------------------
 void NewtonSolver::generateGrid()
 {
-    // currently they are mapped to x in a linear fashion; may be changed according to needs
+    // currently they are mapped to x as x=(1-z) / 2 may be changed according to needs
     for (size_t k = 0; k < Nx; ++k)
     {
         real_t z = std::cos(M_PI * k / (static_cast<real_t>(Nx) - 1.0));
@@ -169,11 +179,11 @@ void NewtonSolver::generateGrid()
         z_prime[k] = - 2.0;
     }
 
-    for (size_t k = 0; k < Nx/2; ++k)
-    {
-        real_t z = std::cos(M_PI * k / (static_cast<real_t>(Nx/2) - 1.0));
-        xGridHalf[k] = (1 - z) / 2;
-    }
+    //for (size_t k = 0; k < Nx/2; ++k)
+    //{
+    //    real_t z = std::cos(M_PI * k / (static_cast<real_t>(Nx/2) - 1.0));
+    //    xGridHalf[k] = (1 - z) / 2;
+    //}
 
 }
 
@@ -190,8 +200,6 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
 
     std::cout << "Starting to assemble Jacobian: " << std::endl << std::endl;
 
-    auto toc_outer = std::chrono::high_resolution_clock::now();
-
     for (size_t i=0; i<Nnewton; ++i)
     {
         auto toc_inner = std::chrono::high_resolution_clock::now();
@@ -207,18 +215,15 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
             jacobian[j][i] = (perturbedOutput[j] - baseOutput[j]) / EpsNewton;
         }
 
-        //if (config.Verbose)
-        //{
+        if (i%500 == 0)
+        {
             auto tic_inner = std::chrono::high_resolution_clock::now();
             std::cout << "Varying parameter: " << i+1 << "/" << Nnewton
                       << " in " << static_cast<real_t>((tic_inner-toc_inner).count()) / 1e9
                       << " s." << std::endl;
-        //}
+        }
     }
 
-    auto tic_outer = std::chrono::high_resolution_clock::now();
-    std::cout << "Time for Newton Iteration: " << static_cast<real_t>((tic_outer-toc_outer).count()) / 1e9
-              << " s." << std::endl << std::endl;
 
     Verbose = config.Verbose;
 }
@@ -266,7 +271,7 @@ real_t NewtonSolver::computeL2Norm(const vec_real& vc)
 //------------------------------------------------------------------------------
 void NewtonSolver::writeFinalOutput(size_t newtonIts, real_t mismatchNorm)
 {
-    result.f = f;
+    result.F = F;
     result.Om = Om;
     result.Pi = Pi;
     result.Psi = Psi;

@@ -65,13 +65,13 @@ class StatePacker
     SpectralTransformer fft;
 
     /// xgrid
-    vec_real x;
-    vec_real x2;
-    vec_real x_prime;
+    //vec_real x;
+    //vec_real x2;
+    //vec_real x_prime;
 
     // buffers
-    vec_complex fF, OmF, PiF, PsiF; 
-    vec_complex ftmp, Omtmp, Pitmp, Psitmp;
+    vec_complex FF, OmF, PiF, PsiF; 
+    vec_complex Ftmp, Omtmp, Pitmp, Psitmp;
     vec_complex tmp, Y, dtY, dxY;
 
 
@@ -86,16 +86,15 @@ class StatePacker
      */
     StatePacker(size_t Nt_, size_t Nx_, real_t Dim_);
 
-    void pack(const vec_real& f, const vec_real& Om, const vec_real& Pi, const vec_real& Psi,
-              const vec_real& x2, vec_real& vec);
+    void pack(const vec_real& F, const vec_real& Om, const vec_real& Pi, const vec_real& Psi, vec_real& vec);
 
-    void unpack(const vec_real& inputVec, const vec_real& x2, vec_complex& Y);
+    void unpack(const vec_real& inputVec, vec_complex& Y);
 
     void buildFields(const vec_complex& Y, real_t Delta, vec_real& f, vec_real& Om, vec_real& Pi , vec_real& Psi, 
                     vec_real& dtf, vec_real& dtOm, vec_real& dtPi , vec_real& dtPsi,
                     vec_real& dxf, vec_real& dxOm, vec_real& dxPi , vec_real& dxPsi);
 
-    void NewtonToFields(const vec_real& vec, const vec_real& x2, vec_real& f, vec_real& Om, vec_real& Pi, vec_real& Psi);
+    void NewtonToFields(const vec_real& vec, vec_real& F, vec_real& Om, vec_real& Pi, vec_real& Psi);
 
     void condenseResidual(const vec_real& fRes, const vec_real& OmRes, 
                           const vec_real& PiRes, const vec_real& PsiRes, vec_real& vec);
