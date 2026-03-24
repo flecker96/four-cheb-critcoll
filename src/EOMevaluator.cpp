@@ -31,22 +31,22 @@ EOMevaluator::EOMevaluator(int Ntau_, int Nx_, real_t Dim_, StatePacker& packer_
 
 //Output Y in x-t space
 void EOMevaluator::ComputeResidual(const vec_complex& Yin, const real_t& Delta, const vec_real& x, 
-                        vec_real& outputVec)
+                        const vec_real& zprime, vec_real& outputVec)
 {
-    packer.buildFields(Yin, Delta, f, Om, Pi, Psi, dtf, dtOm, dtPi, dtPsi, dxf, dxOm, dxPi, dxPsi);
-    for (size_t i=0; i<10; ++i) std::cout << std::setprecision(15) << f[Nx*i + Nx] << std::endl;
-            exit(0);
+    packer.buildFields(Yin, Delta, f, Om, Pi, Psi, dtf, dtOm, dtPi, dtPsi, dxf, dxOm, dxPi, dxPsi);           
+    for (size_t j=0; j<Nx; ++j) std::cout << std::setprecision(15) << Pi[j] << "," << std::endl;
+    exit(0);
     for (size_t i=0; i<Nx; ++i)
     {
         for (size_t j=0; j<Nt; ++j)
         {
-            fRes[Nx*j + i] = (dxf[Nx*j + i] / f[Nx*j + i]) - x[i] * Om[Nx*j + i];
-            OmRes[Nx*j + i] = x[i]*dxOm[Nx*j + i] 
+            fRes[Nx*j + i] = (zprime[i] * dxf[Nx*j + i] / f[Nx*j + i]) - x[i] * Om[Nx*j + i];
+            OmRes[Nx*j + i] = x[i] * zprime[i] * dxOm[Nx*j + i] 
                                 - Om[Nx*j + i] * (1.0 - Dim + x[i]*x[i]*Pi[Nx*j + i]*Pi[Nx*j + i] + x[i]*x[i]*x[i]*x[i]*Psi[Nx*j + i]*Psi[Nx*j + i]) 
                                 + x[i] * x[i] * Om[Nx*j + i] * Om[Nx*j + i] 
                                 - (Dim - 3.0) * (Pi[Nx*j + i]*Pi[Nx*j + i] + x[i]*x[i]*Psi[Nx*j + i]*Psi[Nx*j + i]);
-            PiRes[Nx*j + i] = x[i]*dxPi[Nx*j + i] + dtPi[Nx*j + i] + Pi[Nx*j + i] - f[Nx*j + i] * (x[i]*dxPsi[Nx*j + i] + (Dim - 1.0 + x[i]*x[i]*Om[Nx*j + i])*Psi[Nx*j + i]);
-            PsiRes[Nx*j + i] = x[i]*x[i]*dxPsi[Nx*j + i] + x[i]*dtPsi[Nx*j + i] + 2.0*x[i]*Psi[Nx*j + i] - f[Nx*j + i] * (dtPi[Nx*j + i] + x[i]*Om[Nx*j + i]*Pi[Nx*j + i]);
+            PiRes[Nx*j + i] = x[i] * zprime[i] * dxPi[Nx*j + i] + dtPi[Nx*j + i] + Pi[Nx*j + i] - f[Nx*j + i] * (x[i]*zprime[i]*dxPsi[Nx*j + i] + (Dim - 1.0 + x[i]*x[i]*Om[Nx*j + i])*Psi[Nx*j + i]);
+            PsiRes[Nx*j + i] = x[i]*x[i]*zprime[i]*dxPsi[Nx*j + i] + x[i]*dtPsi[Nx*j + i] + 2.0*x[i]*Psi[Nx*j + i] - f[Nx*j + i] * (zprime[i] * dxPi[Nx*j + i] + x[i]*Om[Nx*j + i]*Pi[Nx*j + i]);
         }
     }
 

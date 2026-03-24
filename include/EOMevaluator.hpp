@@ -22,7 +22,7 @@ class EOMevaluator
     //Cstor
     EOMevaluator(int Nt_, int Nx_, real_t Dim_, StatePacker& packer_);
 
-    void ComputeResidual(const vec_complex& Yin, const real_t& Delta, const vec_real& x, 
+    void ComputeResidual(const vec_complex& Yin, const real_t& Delta, const vec_real& x, const vec_real& xprime,  
                         vec_real& outputVec);
    
 };

@@ -30,7 +30,7 @@ NewtonSolver::NewtonSolver(SimulationConfig configIn, SimulationConfig& configOu
 
     // xGrid
     xGrid.resize(Nx);
-    x_prime.resize(Nx);
+    z_prime.resize(Nx);
     xGridHalf.resize(Nx / 2);
 }
 
@@ -148,7 +148,7 @@ void NewtonSolver::shoot(vec_real& inputVec, vec_real& outputVec, json* fieldVal
     inputVec[3*Nt*Nx/8 + 2] = Delta;
 
     //Take Yin (in spectral space), evaluate EOM and condense
-    evaluator.ComputeResidual(Yin, Delta, xGrid, outputVec);
+    evaluator.ComputeResidual(Yin, Delta, xGrid, z_prime, outputVec);
 }
 
 
@@ -166,7 +166,7 @@ void NewtonSolver::generateGrid()
     {
         real_t z = std::cos(M_PI * k / (static_cast<real_t>(Nx) - 1.0));
         xGrid[k] = (1.0 - z) / 2.0;
-        x_prime[k] = - 0.5;
+        z_prime[k] = - 2.0;
     }
 
     for (size_t k = 0; k < Nx/2; ++k)
@@ -207,13 +207,13 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
             jacobian[j][i] = (perturbedOutput[j] - baseOutput[j]) / EpsNewton;
         }
 
-        if (config.Verbose)
-        {
+        //if (config.Verbose)
+        //{
             auto tic_inner = std::chrono::high_resolution_clock::now();
             std::cout << "Varying parameter: " << i+1 << "/" << Nnewton
                       << " in " << static_cast<real_t>((tic_inner-toc_inner).count()) / 1e9
                       << " s." << std::endl;
-        }
+        //}
     }
 
     auto tic_outer = std::chrono::high_resolution_clock::now();

@@ -62,7 +62,7 @@ class NewtonSolver
     bool benchmark;                    ///< If true, run in benchmark mode.
     vec_real f, Om, Pi, Psi;             ///< Boundary input functions (τ-dependent).
     vec_real fRes, OmRes, PiRes, PsiRes;
-    vec_real xGrid, xGridHalf, x_prime;                    ///< Radial grid points (left → right).
+    vec_real xGrid, xGridHalf, z_prime;                    ///< Radial grid points (left → right).
     vec_real in0, out0;                ///< Working vectors for shooting I/O.
     std::filesystem::path baseFolder;  ///< Path where outputs are written.
     StatePacker packer;               ///< Generates near-boundary Taylor expansions.
