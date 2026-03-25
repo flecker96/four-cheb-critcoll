@@ -45,6 +45,8 @@ struct SimulationConfig
     real_t Delta, ErrorNorm;
     vec_real F, Om, Pi, Psi;
 
+    template <typename T>
+    static H5::DataType get_hdf5_type();
     
     SimulationConfig(int Nt_, int Nx_)
         : Nt(Nt_), Nx(Nx_)
@@ -55,27 +57,7 @@ struct SimulationConfig
         Psi.resize(Nx * Nt);
     }
 
-    /**
-     * @brief Construct from a JSON object.
-     *
-     * Expected layout (keys must exist; some initial condition entries may be null):
-     * ```
-     * {
-     *   "Ntau": ..., "Dim": ...,
-     *   "XLeft": ..., "XMid": ..., "XRight": ...,
-     *   "EpsNewton": ..., "PrecisionNewton": ..., "SlowError": ...,
-     *   "MaxIterNewton": ..., "Verbose": ..., "Debug": ..., "DebugNx": ..., "DebugNtau": ...,
-     *   "Converged": ..., "NLeft": ..., "NRight": ...,
-     *   "PrecisionIRK": ..., "SchemeIRK": ..., "MaxIterIRK": ...,
-     *   "Initial_Conditions": {
-     *     "Delta": <float or null>,
-     *     "fc":    <array or null>,
-     *     "psic":  <array or null>,
-     *     "Up":    <array or null>
-     *   }
-     * }
-     * ```
-     */
+    
     SimulationConfig(H5::H5File& file)
     {
         readAttribute(file, "Delta", Delta);
@@ -99,8 +81,6 @@ struct SimulationConfig
         readDataset(file, "Psi", Psi);
     }
 
-    
-
     static SimulationConfig loadFromHDF5(const std::string& filename)
     {
         try {
@@ -111,38 +91,73 @@ struct SimulationConfig
         }
     }
 
+    void writeToHdf5(const std::string& filename) const {
+        // Create a new HDF5 file (overwrite if exists)
+        H5::H5File file(filename, H5F_ACC_TRUNC);
+
+        hsize_t dims[2] = {
+            static_cast<hsize_t>(Nx),
+            static_cast<hsize_t>(Nt)
+        };
+        H5::DataSpace dataspace(2, dims);
+        H5::DataSpace scalar(H5S_SCALAR);
+
+        // datasets
+        writeDataset(file, dataspace, "F", F);
+        writeDataset(file, dataspace, "Om", Om);
+        writeDataset(file, dataspace, "Pi", Pi);
+        writeDataset(file, dataspace, "Psi", Psi);
+
+        // attributes
+        writeAttribute(file, scalar, "Nx", Nx);
+        writeAttribute(file, scalar, "Nt", Nt);
+        writeAttribute(file, scalar, "Delta", Delta);
+        writeAttribute(file, scalar, "Dim", Dim);
+        writeAttribute(file, scalar, "MaxIterNewton", MaxIterNewton);
+        writeAttribute(file, scalar, "EpsNewton", EpsNewton);
+        writeAttribute(file, scalar, "Converged", Converged);
+        writeAttribute(file, scalar, "mismatchNorm", ErrorNorm);
+        writeAttribute(file, scalar, "IterNewton", IterNewton);
+
+        std::cout << "Output written to file. " << std::endl;
+    }
+
     void readDataset(H5::H5File& file, const std::string& name, std::vector<double>& data)
     {
         H5::DataSet dataset = file.openDataSet(name);
         dataset.read(data.data(), H5::PredType::NATIVE_DOUBLE);
     }
 
-    void readAttribute(H5::H5File& file, const std::string& name, int& value)
+    template <typename T>
+    void readAttribute(H5::H5File& file, const std::string& name, T& value)
     {
         H5::Attribute attr = file.openAttribute(name);
-        attr.read(H5::PredType::NATIVE_INT, &value);
+        auto type = get_hdf5_type<T>();
+        attr.read(type, &value);
     }
 
-    void readAttribute(H5::H5File& file, const std::string& name, real_t& value)
+    static void writeDataset(H5::H5File& file,
+                              const H5::DataSpace& dataspace,
+                              const std::string& name,
+                              const std::vector<double>& data)
     {
-        H5::Attribute attr = file.openAttribute(name);
-        attr.read(H5::PredType::NATIVE_DOUBLE, &value);
+        H5::DataSet ds = file.createDataSet(
+            name,
+            H5::PredType::IEEE_F64LE,
+            dataspace
+        );
+        ds.write(data.data(), H5::PredType::IEEE_F64LE);
     }
 
-    void readAttribute(H5::H5File& file, const std::string& name, bool& value)
+    template <typename T>
+    static void writeAttribute(H5::H5File& file,
+                                const H5::DataSpace& scalar,
+                                const std::string& name,
+                                const T& value)
     {
-        H5::Attribute attr = file.openAttribute(name);
-        attr.read(H5::PredType::NATIVE_HBOOL, &value);
-    }
-
-    /**
-     * @brief Save a JSON object (e.g., results) to file.
-     * @note Writes the JSON as-is; caller controls formatting/indentation.
-     */
-    static void saveToJson(const std::string& filename, json& simRes)
-    {
-        std::ofstream file(filename);
-        file << simRes;
+        auto type = get_hdf5_type<T>();
+        H5::Attribute attr = file.createAttribute(name, type, scalar);
+        attr.write(type, &value);
     }
 
     /// Print a human-readable configuration summary to stdout.
@@ -169,4 +184,41 @@ struct SimulationConfig
     }
 };
 
+template <>
+inline H5::DataType SimulationConfig::get_hdf5_type<int>()
+{
+    return H5::PredType::NATIVE_INT;
+}
 
+// double
+template <>
+inline H5::DataType SimulationConfig::get_hdf5_type<double>()
+{
+    return H5::PredType::IEEE_F64LE;
+}
+
+// bool
+template <>
+inline H5::DataType SimulationConfig::get_hdf5_type<bool>()
+{
+    return H5::PredType::NATIVE_HBOOL;
+}
+
+
+/*void readAttribute(H5::H5File& file, const std::string& name, int& value)
+    {
+        H5::Attribute attr = file.openAttribute(name);
+        attr.read(H5::PredType::NATIVE_INT, &value);
+    }
+
+    void readAttribute(H5::H5File& file, const std::string& name, real_t& value)
+    {
+        H5::Attribute attr = file.openAttribute(name);
+        attr.read(H5::PredType::NATIVE_DOUBLE, &value);
+    }
+
+    void readAttribute(H5::H5File& file, const std::string& name, bool& value)
+    {
+        H5::Attribute attr = file.openAttribute(name);
+        attr.read(H5::PredType::NATIVE_HBOOL, &value);
+    }*/

@@ -34,8 +34,7 @@ void EOMevaluator::ComputeResidual(const vec_complex& Yin, const real_t& Delta, 
                         const vec_real& zprime, vec_real& outputVec)
 {
     packer.buildFields(Yin, Delta, F, Om, Pi, Psi, dtF, dtOm, dtPi, dtPsi, dxF, dxOm, dxPi, dxPsi);           
-    //for (size_t j=0; j<Nx; ++j) std::cout << std::setprecision(15) << F[j] << "," << std::endl;
-    //exit(0);
+    
     for (size_t i=0; i<Nx; ++i)
     {
         for (size_t j=0; j<Nt; ++j)

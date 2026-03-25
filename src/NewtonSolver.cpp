@@ -98,7 +98,9 @@ void NewtonSolver::run(json* benchmark_result)
             std::cerr << "Inverting Jacobian...\n";
             solveLinearSystem(J, rhs, dx);
 
+            slowErr = 0.1;
             fac = std::min(1.0, slowErr / err);
+            //fac = 1.0;
 
             if (std::log10(err) < std::log10(errOld))
             {
@@ -122,7 +124,7 @@ void NewtonSolver::run(json* benchmark_result)
             packer.NewtonToFields(in0old, F, Om, Pi, Psi);
             writeFinalOutput(maxIts, errOld);
             std::cerr << "Newton method did not converge in " << maxIts << " iterations. For dimension: " << Dim << std::endl;
-            std::exit(EXIT_FAILURE);
+            //std::exit(EXIT_FAILURE);
         }
     }
     else
@@ -275,6 +277,7 @@ void NewtonSolver::writeFinalOutput(size_t newtonIts, real_t mismatchNorm)
     result.Om = Om;
     result.Pi = Pi;
     result.Psi = Psi;
+    result.Delta = Delta;
 
     result.Nt = Nt;
     result.Nx = Nx;
