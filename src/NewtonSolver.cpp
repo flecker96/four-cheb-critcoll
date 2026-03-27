@@ -3,10 +3,9 @@
 // Newton–Kantorovich solver for the critical-collapse boundary value problem.
 // Responsibilities:
 //   • Hold simulation config and working buffers (spectral/state/grids).
-//   • Build left/right Taylor initial data and call the ShootingSolver.
+//   • 
 //   • Assemble finite-difference Jacobian via repeated “shoot” evaluations.
 //   • Solve J·dx = −res with LAPACK (row-major), apply line damping, iterate.
-//   • Support Serial / OpenMP / MPI / Hybrid backends and benchmarking.
 //==============================================================================
 
 #include "NewtonSolver.hpp"
@@ -41,7 +40,8 @@ void NewtonSolver::run(json* benchmark_result)
 {
     if (!Converged)
     {
-        real_t fac = 1.0, err = 1.0, errOld = 1.0;
+        //real_t fac = 1.0, 
+        real_t err = 1.0, errOld = 1.0;
         int mismatch_increase_count {};
 
         generateGrid();
@@ -58,7 +58,7 @@ void NewtonSolver::run(json* benchmark_result)
 
             errOld = err;
             
-            shoot(in0, out0);
+            EOM(in0, out0);
            
             err = computeL2Norm(out0);
             std::cout << "Mismatch norm: " << err << std::endl;
@@ -91,15 +91,28 @@ void NewtonSolver::run(json* benchmark_result)
             
 
             // Solve J·dx = −res and update input with damping
-
             vec_real dx(Nnewton);
             vec_real rhs = out0;
             std::for_each(rhs.begin(), rhs.end(), [](auto& e){ e *= -1.0; });
             std::cerr << "Inverting Jacobian...\n";
             solveLinearSystem(J, rhs, dx);
 
-            slowErr = 0.1;
-            fac = std::min(1.0, slowErr / err);
+            // Print error of linear solver
+            vec_real residual(Nnewton, 0.0);
+            for (size_t i = 0; i < Nnewton; ++i)
+            {
+                double sum = 0.0;
+                for (size_t j = 0; j < Nnewton; ++j)
+                {
+                    sum += J[i][j] * dx[j];
+                }
+                residual[i] = sum + out0[i]; 
+            }
+            double errlinsol = computeL2Norm(residual);
+            std::cout << "Inverted with error: " << errlinsol << std::endl;
+
+            //slowErr = 0.1;
+            //fac = std::min(1.0, slowErr / err);
             //fac = 1.0;
 
             if (std::log10(err) < std::log10(errOld))
@@ -108,7 +121,28 @@ void NewtonSolver::run(json* benchmark_result)
                 mismatch_increase_count = 0;
             }
             
-            for (size_t i=0; i<Nnewton; ++i) in0[i] += fac * dx[i];
+            // Do line search for updating step
+            double lambda = 1.0;
+            vec_real in_trial(Nnewton);
+            vec_real out_trial(Nnewton);
+
+            while (lambda > 1e-6)
+            {
+                for (size_t i = 0; i < Nnewton; ++i)
+                    in_trial[i] = in0[i] + lambda * dx[i];
+
+                EOM(in_trial, out_trial);
+                double normF_trial = computeL2Norm(out_trial);
+
+                //accept value of lambda if residual decreses
+                if (normF_trial < err)  
+                    break;
+
+                //otherwise halve lambda
+                lambda *= 0.5; 
+            }
+
+            for (size_t i=0; i<Nnewton; ++i) in0[i] += lambda * dx[i];
 
             auto tic_outer = std::chrono::high_resolution_clock::now();
             std::cout << "Time for Newton Iteration: " << static_cast<real_t>((tic_outer-toc_outer).count()) / 1e9
@@ -133,7 +167,7 @@ void NewtonSolver::run(json* benchmark_result)
         generateGrid();
         packer.pack(F, Om, Pi, Psi, in0);
         in0[3*Nt*Nx/8 + 2] = Delta;
-        shoot(in0, out0);
+        EOM(in0, out0);
         real_t err = computeL2Norm(out0);
         std::cout << "The solution is already marked as converged!" << std::endl;
         writeFinalOutput(0, err);
@@ -144,13 +178,13 @@ void NewtonSolver::run(json* benchmark_result)
 
 
 //------------------------------------------------------------------------------
-// shoot
+// EOM
 // 1) Extract (Up, ψc, fc, Δ) from packed input vector (spectral).
 // 2) Build left/right boundary data (Taylor) and call IRK shooter.
 // 3) Transform mismatch state → fields → pack back to spectral output.
 // If `fieldVals` is provided, the shooter exports intermediate field slices.
 //------------------------------------------------------------------------------
-void NewtonSolver::shoot(vec_real& inputVec, vec_real& outputVec, json* fieldVals)
+void NewtonSolver::EOM(vec_real& inputVec, vec_real& outputVec, json* fieldVals)
 {
     // Extract Δ stored in the slot of in0 where Re(Fc_2) is
     Delta = inputVec[3*Nt*Nx/8 + 2];
@@ -167,9 +201,7 @@ void NewtonSolver::shoot(vec_real& inputVec, vec_real& outputVec, json* fieldVal
 
 //------------------------------------------------------------------------------
 // generateGrid
-// Build a monotone grid in x by uniform spacing in the logit variable
-//   z = log(x) - log(1-x).
-// Left block: [XLeft, XMid] with NLeft segments; Right: [XMid, XRight].
+// Build Chebyshev grid and transform to fundamental domain
 //------------------------------------------------------------------------------
 void NewtonSolver::generateGrid()
 {
@@ -180,20 +212,11 @@ void NewtonSolver::generateGrid()
         xGrid[k] = (1.0 - z) / 2.0;
         z_prime[k] = - 2.0;
     }
-
-    //for (size_t k = 0; k < Nx/2; ++k)
-    //{
-    //    real_t z = std::cos(M_PI * k / (static_cast<real_t>(Nx/2) - 1.0));
-    //    xGridHalf[k] = (1 - z) / 2;
-    //}
-
 }
 
 
 //------------------------------------------------------------------------------
-// assembleJacobian (Serial/OpenMP)
-// Serial: loop over columns; OpenMP: thread-local shooters/generators and
-//         private buffers to build columns in parallel safely.
+// assembleJacobian
 // Note: we fill J by columns (jacobian[j][i]) for LAPACK row-major layout later.
 //------------------------------------------------------------------------------
 void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& baseOutput, mat_real& jacobian)
@@ -210,7 +233,7 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
         perturbedInput[i] += EpsNewton;
 
         vec_real perturbedOutput(Nnewton);
-        shoot(perturbedInput, perturbedOutput);
+        EOM(perturbedInput, perturbedOutput);
 
         for (size_t j=0; j<Nnewton; ++j)
         {
@@ -232,7 +255,7 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
 
 
 //------------------------------------------------------------------------------
-// solveLinearSystem (Serial/OpenMP)
+// solveLinearSystem (Serial)
 // Same LAPACK call; row-major dense copy made by memcpy per row.
 //------------------------------------------------------------------------------
 void NewtonSolver::solveLinearSystem(const mat_real& A_in, vec_real& rhs, vec_real& dx)
@@ -268,8 +291,7 @@ real_t NewtonSolver::computeL2Norm(const vec_real& vc)
 
 //------------------------------------------------------------------------------
 // writeFinalOutput
-// Fill `resultDict` with solver metadata, final mismatch, and initial data.
-// On parallel builds only rank 0 prints the confirmation message.
+// Fill `result` with solver metadata, final mismatch, and initial data.
 //------------------------------------------------------------------------------
 void NewtonSolver::writeFinalOutput(size_t newtonIts, real_t mismatchNorm)
 {

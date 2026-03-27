@@ -30,18 +30,14 @@
 
 /**
  * @class StatePacker
- * @brief Builds boundary expansions and performs field/state conversions.
+ * @brief Builds fields from spectral representations and vice versa.
  *
  * @section responsibilities Responsibilities
- * - Left (x≈0) expansion up to 5th order using input (f_c, ψ_c).
- * - Right (x≈1) expansion up to 3rd order using input (U_p).
- * - Convert (U,V,F) ↔ spectral state vector Y.
+ * - Convert (Pi,Psi,F,Om) ↔ spectral state vector Y.
  * - Pack/unpack parity-split spectral arrays to flat storage.
  *
  * @section requirements Requirements
- * - Ntau ≥ 8 and even (typical spectral constraints).
- * - Input arrays must have length Ntau.
- * - The echoing period Δ must be known (constructor or provided per call).
+ * - Nt ≥ 8 and even (typical spectral constraints).
  */
 class StatePacker
 {
@@ -58,16 +54,8 @@ class StatePacker
     /// Physical (rational) spacetime dimension D.
     real_t Dim;
 
-    /// Echoing period Δ used by spectral operators (can be updated per call).
-    /*real_t Delta;*/
-
     /// FFTW-based spectral engine (derivatives, integrals, solves).
     SpectralTransformer fft;
-
-    /// xgrid
-    //vec_real x;
-    //vec_real x2;
-    //vec_real x_prime;
 
     // buffers
     vec_complex FF, OmF, PiF, PsiF; 
@@ -77,12 +65,12 @@ class StatePacker
 
   public:
     /**
-     * @brief Construct an StatePacker.
-     * @param Ntau_   Number of τ samples per period.
+     * @brief Construct a StatePacker.
+     * @param Nt_   Number of τ samples per period.
+     * @param Nx_     Number of x samples.
      * @param Dim_    Physical dimension D.
-     * @param Delta_  Echoing period Δ.
      *
-     * @note The internal SpectralTransformer is initialized with (Ntau_, Δ).
+     * @note The internal SpectralTransformer is initialized with (Nt_, Nx_).
      */
     StatePacker(size_t Nt_, size_t Nx_, real_t Dim_);
 
@@ -95,63 +83,6 @@ class StatePacker
                     vec_real& dxf, vec_real& dxOm, vec_real& dxPi , vec_real& dxPsi);
 
     void NewtonToFields(const vec_real& vec, vec_real& F, vec_real& Om, vec_real& Pi, vec_real& Psi);
-
-    void condenseResidual(const vec_real& fRes, const vec_real& OmRes, 
-                          const vec_real& PiRes, const vec_real& PsiRes, vec_real& vec);
-
-    void packSpectralFields(
-        const vec_real& Odd1, const vec_real& Odd2, const vec_real& Even,
-        vec_real& Z);
-
-    /**
-     * @brief Inverse of @ref packSpectralFields.
-     * @param Z      Packed storage vector of size 3*Ntau.
-     * @param[out] Odd1  First odd field (size Ntau).
-     * @param[out] Odd2  Second odd field (size Ntau).
-     * @param[out] Even  Even field (size Ntau).
-     */
-    void unpackSpectralFields(const vec_real& Z,
-                              vec_real& Odd1, vec_real& Odd2, vec_real& Even);
-
-    /**
-     * @brief Pack physical fields (U,V,F) into complex spectral state Y.
-     *
-     * @details
-     * Performs real→spectral transforms and arranges coefficients into the
-     * solver’s state vector layout. By convention the real part of Y[2] stores
-     * Δ after packing so downstream components can read the echoing period
-     * without separate plumbing.
-     *
-     * @param U    Real samples of U(τ), length Ntau.
-     * @param V    Real samples of V(τ), length Ntau.
-     * @param F    Real samples of F(τ), length Ntau.
-     * @param[out] Y  Complex spectral state vector.
-     */
-    void FieldsToStateVector(const vec_real& U, const vec_real& V,
-                             const vec_real& F, vec_complex& Y);
-
-    /**
-     * @brief Unpack complex spectral state Y to fields and selected τ-derivatives.
-     *
-     * @details
-     * Inverse of @ref FieldsToStateVector with optional recovery of τ-derivatives
-     * (computed spectrally) at a given spatial location X. Also returns IA2 if
-     * present in the chosen representation (auxiliary even quantity).
-     *
-     * @param[in,out] Y  Spectral state vector (may be updated to enforce Δ convention).
-     * @param[out] U     U(τ), length Ntau.
-     * @param[out] V     V(τ), length Ntau.
-     * @param[out] F     F(τ), length Ntau.
-     * @param[out] IA2   Auxiliary even field a²(τ) or its inverse variant (length Ntau).
-     * @param[out] dUdt  τ-derivative of U(τ), length Ntau.
-     * @param[out] dVdt  τ-derivative of V(τ), length Ntau.
-     * @param[out] dFdt  τ-derivative of F(τ), length Ntau.
-     * @param X          Spatial location where the expansion/interpretation applies.
-     */
-    /*void StateVectorToFields(vec_complex& Y, vec_real& U, vec_real& V,
-                             vec_real& F, vec_real& IA2,
-                             vec_real& dUdt, vec_real& dVdt, vec_real& dFdt,
-                             real_t X);*/
 
     /**
      * @brief Unpack complex spectral state Y to fields (no derivatives).

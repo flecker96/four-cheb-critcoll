@@ -77,7 +77,7 @@ class NewtonSolver
      * @param outputVec Output mismatch vector.
      * @param fieldVals Optional JSON container for storing fields along integration.
      */
-    void shoot(vec_real& inputVec, vec_real& outputVec, json* fieldVals=nullptr);
+    void EOM(vec_real& inputVec, vec_real& outputVec, json* fieldVals=nullptr);
 
     /**
      * @brief Assemble finite-difference Jacobian of mismatch residuals.

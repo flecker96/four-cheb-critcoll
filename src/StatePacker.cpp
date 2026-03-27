@@ -51,28 +51,28 @@ void StatePacker::pack(
 {
     for(size_t i=0; i<Nt*Nx; i++){
         Ftmp[i] = F[i];
-        Omtmp[i] = Om[i];
         Pitmp[i] = Pi[i];
+        Omtmp[i] = Om[i];
         Psitmp[i] = Psi[i];
     }
 
-    fft.forwardFFT_time2(Ftmp);
-    fft.forwardDCT_space2(Ftmp); 
+    fft.forwardFFT(Ftmp);
+    fft.forwardCheb(Ftmp); 
     fft.halveModes(Ftmp, FF);
     fft.backwardChebHalf(FF);
 
-    fft.forwardFFT_time2(Omtmp);
-    fft.forwardDCT_space2(Omtmp);
+    fft.forwardFFT(Pitmp);
+    fft.forwardCheb(Pitmp);
+    fft.halveModes(Pitmp, PiF);
+    fft.backwardChebHalf(PiF);
+    
+    fft.forwardFFT(Omtmp);
+    fft.forwardCheb(Omtmp);
     fft.halveModes(Omtmp, OmF);
     fft.backwardChebHalf(OmF);
 
-    fft.forwardFFT_time2(Pitmp);
-    fft.forwardDCT_space2(Pitmp);
-    fft.halveModes(Pitmp, PiF);
-    fft.backwardChebHalf(PiF);
-
-    fft.forwardFFT_time2(Psitmp);
-    fft.forwardDCT_space2(Psitmp);
+    fft.forwardFFT(Psitmp);
+    fft.forwardCheb(Psitmp);
     fft.halveModes(Psitmp, PsiF);
     fft.backwardChebHalf(PsiF);
 
@@ -91,19 +91,19 @@ void StatePacker::pack(
             vec[2*j + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].real();
             vec[2*j + 1 + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].imag();
             //Psi
-            vec[2*j + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
-            vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
+            vec[2*j + (Nt/4)*i + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
+            vec[2*j + 1 + (Nt/4)*i + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
             //Om
-            vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
-            vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
+            vec[2*j + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
+            vec[2*j + 1 + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
             //F
-            vec[2*j + Nt*i/4 + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].real();
-            vec[2*j + 1 + Nt*i/4 + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].imag();
+            vec[2*j + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].real();
+            vec[2*j + 1 + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].imag();
         }
 
         //Nyquist
-        vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real();  //Store HF cosine in imaginary part of zero mode
-        vec[1 + Nt*i/4 + 3*Nt*Nx/8] = FF[(Nx/2)*(2*Nt/8) + i].real();
+        vec[1 + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(Nt/4) + i].real();  //Store HF cosine in imaginary part of zero mode
+        vec[1 + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(Nt/4) + i].real();
     }
     
 }
@@ -121,25 +121,25 @@ void StatePacker::unpack(const vec_real& vec, vec_complex& Y)
 
     if (Y.size() != Nt*Nx)
         throw std::runtime_error("unpack: wrong size of output vector");
-
+    
     for (size_t i=0; i<Nx/2; ++i){
             for (size_t j=0; j<Nt/8; ++j)
             {
                 // Pi: take values of Z (in x-om space) and build contiguous vector Pi (Nt/2 joined blocks of length Nx/2 each)
                 // i=0 (x=0) is special: use stored value of pic for this
-                PiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + i*Nt/4], vec[2*j + 1 + i*Nt/4]);
+                PiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + (Nt/4)*i], vec[2*j + 1 + (Nt/4)*i]);
                 PiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = std::conj(PiF[(2*j + 1)*Nx/2 + i]);
 
                 // i=0 (x=0) is special: use stored value of psic for this
-                PsiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + i*Nt/4 + Nt*Nx/8], vec[2*j+1 + i*Nt/4 + Nt*Nx/8]);
+                PsiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + (Nt/4)*i + Nt*Nx/8], vec[2*j+1 + (Nt/4)*i + Nt*Nx/8]);
                 PsiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = std::conj(PsiF[(2*j + 1)*Nx/2 + i]);
 
                 // Om can be done in one go, no seperate regularity condition needed
-                OmF[(2*j)*Nx/2 + i]  = complex_t(vec[2*j + i*Nt/4 + Nt*Nx/4], vec[2*j+1 + i*Nt/4 + Nt*Nx/4]);
+                OmF[(2*j)*Nx/2 + i]  = complex_t(vec[2*j + (Nt/4)*i + Nt*Nx/4], vec[2*j+1 + (Nt/4)*i + Nt*Nx/4]);
                 if (j!=0) OmF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(OmF[(2*j)*Nx/2 + i]);
 
                 // i=0 (x=0) is special: use stored value of fc for this
-                FF[(2*j)*Nx/2 + i] = complex_t(vec[2*j + i*Nt/4 + 3*Nt*Nx/8], vec[2*j+1 + i*Nt/4 + 3*Nt*Nx/8]);
+                FF[(2*j)*Nx/2 + i] = complex_t(vec[2*j + (Nt/4)*i + 3*Nt*Nx/8], vec[2*j+1 + (Nt/4)*i + 3*Nt*Nx/8]);
                 if (j!=0) FF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(FF[(2*j)*Nx/2 + i]);
             }
         
@@ -151,7 +151,7 @@ void StatePacker::unpack(const vec_real& vec, vec_complex& Y)
         FF[i] = complex_t(FF[i].real());        
        
     }
-    
+
     //build state vector and double
     for (size_t i=0; i<Nt*Nx/4; ++i) {
         tmp[i] = FF[i] + PiF[i] + complex_t(0.0, 1.0)*(OmF[i] + PsiF[i]);
@@ -162,66 +162,7 @@ void StatePacker::unpack(const vec_real& vec, vec_complex& Y)
 }
 
 
-void StatePacker::condenseResidual(const vec_real& fRes, const vec_real& OmRes, const vec_real& PiRes, const vec_real& PsiRes, vec_real& vec)
-{
-    //convert into complex vectors
-    for(size_t i=0; i<Nt*Nx; i++){
-        Ftmp[i] = fRes[i];
-        Omtmp[i] = OmRes[i];
-        Pitmp[i] = PiRes[i];
-        Psitmp[i] = PsiRes[i];
-    }
 
-    fft.forwardFFT_time2(Ftmp);
-    fft.forwardDCT_space2(Ftmp);
-    fft.halveModes(Ftmp, FF);
-    fft.backwardChebHalf(FF);
-
-    fft.forwardFFT_time2(Omtmp);
-    fft.forwardDCT_space2(Omtmp);
-    fft.halveModes(Omtmp, OmF);
-    fft.backwardChebHalf(OmF);
-
-    fft.forwardFFT_time2(Pitmp);
-    fft.forwardDCT_space2(Pitmp);
-    fft.halveModes(Pitmp, PiF);
-    fft.backwardChebHalf(PiF);
-
-    fft.forwardFFT_time2(Psitmp);
-    fft.forwardDCT_space2(Psitmp);
-    fft.halveModes(Psitmp, PsiF);
-    fft.backwardChebHalf(PsiF);
-
-    //now fill vec
-    if (vec.size() != Nnewton)
-        throw std::runtime_error("condenseResidual: wrong size of output vector");
-
-    for (size_t i=0; i<Nx/2; ++i)
-    {
-       
-        for (size_t j=0; j<Nt/8; ++j)
-        {
-            //PI
-            vec[2*j + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].real();
-            vec[2*j + 1 + (Nt/4)*i] = PiF[(Nx/2)*(2*j + 1) + i].imag();
-            //PSI
-            vec[2*j + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].real();
-            vec[2*j + 1 + Nt*i/4 + Nt*Nx/8] = PsiF[(Nx/2)*(2*j + 1) + i].imag();
-            //Om 
-            vec[2*j + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
-            vec[2*j + 1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
-            //f ; the eom at the center (x=0) is not used
-            vec[2*j + (Nt/4)*(i-1) + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].real();
-            vec[2*j + 1 + (Nt/4)*(i-1) + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].imag();
-        }
-        
-        //Nyquist
-        vec[1 + Nt*i/4 + Nt*Nx/4] = OmF[(Nx/2)*(2*Nt/8) + i].real(); 
-        vec[1 + (Nt/4)*(i-1) + 3*Nt*Nx/8] = FF[(Nx/2)*(2*Nt/8) + i].real();
-        
-    }
-
-}
 
 void StatePacker::buildFields(const vec_complex& Yin, real_t Delta, vec_real& F, vec_real& Om, vec_real& Pi, vec_real& Psi, 
                             vec_real& dtF, vec_real& dtOm, vec_real& dtPi, vec_real& dtPsi, 
@@ -235,13 +176,13 @@ void StatePacker::buildFields(const vec_complex& Yin, real_t Delta, vec_real& F,
     fft.differentiate_x(Y, dxY);
     fft.differentiate_t(Y, dtY, Delta);
 
-    fft.backwardDCT_space2(Y);
-    fft.backwardDCT_space2(dtY);
-    fft.backwardDCT_space2(dxY);
+    fft.backwardCheb(Y);
+    fft.backwardCheb(dtY);
+    fft.backwardCheb(dxY);
 
-    fft.backwardFFT_time2(Y);
-    fft.backwardFFT_time2(dtY);
-    fft.backwardFFT_time2(dxY);
+    fft.backwardFFT(Y);
+    fft.backwardFFT(dtY);
+    fft.backwardFFT(dxY);
 
     StateVectorToFields(Y, F, Om, Pi, Psi);
     StateVectorToFields(dtY, dtF, dtOm, dtPi, dtPsi);
@@ -252,15 +193,15 @@ void StatePacker::buildFields(const vec_complex& Yin, real_t Delta, vec_real& F,
 void StatePacker::NewtonToFields(const vec_real& vec, vec_real& F, vec_real& Om, vec_real& Pi, vec_real& Psi)
 {
     unpack(vec, Y);
-    fft.backwardDCT_space2(Y);
-    fft.backwardFFT_time2(Y);
+    fft.backwardCheb(Y);
+    fft.backwardFFT(Y);
 
     StateVectorToFields(Y, F, Om, Pi, Psi);
 }
 
 //------------------------------------------------------------------------------
 // StateVectorToFields 
-// Takes Y = f + Pi + i(Om + Psi) and decomposes in to deparate fields
+// Takes Y = f + Pi + i(Om + Psi) and decomposes in to separate fields
 //------------------------------------------------------------------------------
 void StatePacker::StateVectorToFields(const vec_complex& Y, vec_real& Even1, vec_real& Even2,
      vec_real& Odd1, vec_real& Odd2)
@@ -285,143 +226,4 @@ void StatePacker::StateVectorToFields(const vec_complex& Y, vec_real& Even1, vec
     }
 }
 
-
-//------------------------------------------------------------------------------
-// unpackSpectralFields
-// Inverse of packSpectralFields: rebuild full complex spectra from Z by
-// populating the half-spectrum and mirroring (Hermitian) before inverse FFT.
-// Restores the special high-frequency cosine to both endpoints.
-//------------------------------------------------------------------------------
-void StatePacker::unpackSpectralFields(const vec_real& Z,
-    vec_real& Odd1, vec_real& Odd2, vec_real& Even)
-{
-    vec_complex Odd1F(Nt/2, complex_t(0.0));
-    vec_complex Odd2F(Nt/2, complex_t(0.0));
-    vec_complex EvenF(Nt/2, complex_t(0.0));
-
-    for (size_t j=0; j<Nnewton/6; ++j)
-    {
-        // Odd1: positive odd indices, then conjugate mirror
-        Odd1F[2*j+1]               = complex_t(Z[2*j], Z[2*j+1]);
-        Odd1F[Nt/2 - 2*j - 1]    = std::conj(Odd1F[2*j+1]);
-
-        // Odd2
-        Odd2F[2*j+1]               = complex_t(Z[2*j + Nnewton/3], Z[2*j+1 + Nnewton/3]);
-        Odd2F[Nt/2 - 2*j - 1]    = std::conj(Odd2F[2*j+1]);
-
-        // Even: even indices; mirror except j=0 (DC)
-        EvenF[2*j]                 = complex_t(Z[2*j + 2*Nnewton/3], Z[2*j+1 + 2*Nnewton/3]);
-        if (j != 0)
-            EvenF[Nt/2 - 2*j]    = std::conj(EvenF[2*j]);
-    }
-
-    // Enforce pure-real DC (imag=0)
-    EvenF[0] = complex_t(EvenF[0].real());
-
-    // Expand to full spectrum
-    fft.doubleModes(Odd1F, Odd1F);
-    fft.doubleModes(Odd2F, Odd2F);
-    fft.doubleModes(EvenF, EvenF);
-
-    // Restore high-frequency cosine shared on symmetric endpoints
-    EvenF[Nnewton/3] = complex_t(Z[2*Nnewton/3+1]) / 2.0;
-    EvenF[Nnewton]   = complex_t(Z[2*Nnewton/3+1]) / 2.0;
-
-    // Back to time domain
-    fft.backwardFFT(Odd1F, Odd1);
-    fft.backwardFFT(Odd2F, Odd2);
-    fft.backwardFFT(EvenF, Even);
-}
-
-//------------------------------------------------------------------------------
-// FieldsToStateVector
-// Compose the complex *state* Y from (U,V,F) in time domain as
-//   Y_j = U_j + i (V_j + F_j)
-// then forward FFT and halve modes for compact spectral storage.
-//------------------------------------------------------------------------------
-void StatePacker::FieldsToStateVector(const vec_real& U, const vec_real& V,
-    const vec_real& F, vec_complex& Y)
-{
-    Y.resize(Nt);
-
-    for (size_t j=0; j<Nt; ++j)
-    {
-        Y[j] = complex_t(U[j], V[j] + F[j]);
-    }
-
-    fft.forwardFFT(Y, Y);
-    fft.halveModes(Y, Y);
-}
-
-/*//------------------------------------------------------------------------------
-// StateVectorToFields (with derivatives & IA2)
-// Expand spectral Y to time-domain fields (U,V,F) and their τ-derivatives,
-// and solve the auxiliary constraint for IA2(τ) at given X.
-// Steps:
-//   1) Double modes (rebuild full spectrum), fix special mode to preserve
-//      parity/phasing, then inverse FFT → composite vector.
-//   2) Split into U,V,F by symmetry: U,V odd; F even.
-//   3) Differentiate in spectral space → dUdt,dVdt,dFdt.
-//   4) Solve inhom constraint for IA2 with coefficients from U,V,F.
-//------------------------------------------------------------------------------
-void StatePacker::StateVectorToFields(vec_complex& Y, vec_real& U, vec_real& V,
-     vec_real& F, vec_real& IA2, vec_real& dUdt, vec_real& dVdt, vec_real& dFdt, real_t X)
-{
-    vec_complex compVec1, compVec2;
-    vec_real Coeff1(Nt), Coeff2(Nt);
-
-    // Rebuild full spectrum and enforce phase fix on special mode
-    Delta = Y[2].real();
-    fft.doubleModes(Y, compVec1);
-    compVec1[2] = complex_t(-compVec1[compVec1.size()-2].real(), compVec1[2].imag());
-
-    // Differentiate in spectral space, then go to time domain
-    fft.differentiate(compVec1, compVec2, Delta);
-    fft.backwardFFT(compVec1, compVec1);
-    fft.backwardFFT(compVec2, compVec2);
-
-   
-    // Serial branch (same logic)
-    Delta = Y[2].real();
-    fft.doubleModes(Y, compVec1);
-    compVec1[2] = complex_t(-compVec1[compVec1.size()-2].real(), compVec1[2].imag());
-
-    fft.differentiate(compVec1, compVec2, Delta);
-    fft.backwardFFT(compVec1, compVec1);
-
-    for (size_t j=0; j<Nt/2; ++j)
-    {
-        U[j] = 0.5 * (compVec1[j].real() - compVec1[j+Nt/2].real());
-        V[j] = 0.5 * (compVec1[j].imag() - compVec1[j+Nt/2].imag());
-        F[j] = 0.5 * (compVec1[j].imag() + compVec1[j+Nt/2].imag());
-    }
-    for (size_t j=0; j<Nt/2; ++j)
-    {
-        U[j+Nt/2] = -U[j];
-        V[j+Nt/2] = -V[j];
-        F[j+Nt/2] =  F[j];
-    }
-
-    fft.backwardFFT(compVec2, compVec2);
-    for (size_t j=0; j<Nt/2; ++j)
-    {
-        dUdt[j] = 0.5 * (compVec2[j].real() - compVec2[j+Nt/2].real());
-        dVdt[j] = 0.5 * (compVec2[j].imag() - compVec2[j+Nt/2].imag());
-        dFdt[j] = 0.5 * (compVec2[j].imag() + compVec2[j+Nt/2].imag());
-    }
-    for (size_t j=0; j<Nt/2; ++j)
-    {
-        dUdt[j+Nt/2] = -dUdt[j];
-        dVdt[j+Nt/2] = -dVdt[j];
-        dFdt[j+Nt/2] =  dFdt[j];
-    }
-
-    for (size_t j=0; j<Nt; ++j)
-    {
-        Coeff1[j] = - ( ((X+F[j])*U[j]*U[j] + (X-F[j])*V[j]*V[j]) * std::pow((Dim - 2.0),3) / (8.0*X)
-                         + (Dim - 3.0) );
-        Coeff2[j] =  (Dim - 3.0);
-    }
-    fft.solveInhom(Coeff1, Coeff2, IA2, Delta);
-}*/
 

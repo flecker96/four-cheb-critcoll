@@ -19,18 +19,13 @@
  *
  * @section fields Key Fields
  * - `Ntau`        : Number of τ samples per period.
+ * - `Nx`          : Number of x samples between [0,1].
  * - `Dim`         : Physical dimension D.
- * - `XLeft/XMid/XRight` : Spatial match points (domain decomposition).
  * - `EpsNewton`   : Newton step damping/regularization.
  * - `PrecisionNewton` : Newton tolerance on residual.
- * - `SlowError`   : Slowly-updated error metric (diagnostics).
+ * - `SlowError`   : Damping in outer Newton loop.
  * - `MaxIterNewton` : Maximum Newton iterations.
  * - `Verbose/Debug/Converged` : Execution flags and previous status.
- * - `DebugNx/DebugNtau` : Save every nth spatial and time point.
- * - `NLeft/NRight`: Spatial grid resolution left/right of the match.
- * - `SchemeIRK`: Scheme (order) for implicit RK method (e.g. 1(1),2(4),3(6)).
- * - `PrecisionIRK`: Tolerance for implicit RK step solves.
- * - `MaxIterIRK`  : Maximum Newton iterations per IRK step.
  * - `Delta`       : Echoing period.
  * - `fc/psic/Up`  : Periodic input arrays for boundary expansions.
  */
@@ -166,15 +161,12 @@ struct SimulationConfig
         std::cout << "Simulation configuration:" << std::endl;
         std::cout << "Ntau: " << Nt << std::endl;
         std::cout << "Dim: " << Dim << std::endl;
-        std::cout << "XLeft: " << Nx << std::endl;
+        std::cout << "Nx: " << Nx << std::endl;
         std::cout << "EpsNewton: " << EpsNewton << std::endl;
         std::cout << "PrecisionNewton: " << PrecisionNewton << std::endl;
         std::cout << "SlowError: " << SlowError << std::endl;
         std::cout << "MaxIterNewton: " << MaxIterNewton << std::endl;
         std::cout << "Verbose: " << Verbose << std::endl;
-        std::cout << "Debug: " << Debug << std::endl;
-        std::cout << "DebugNx: " << DebugNx << std::endl;
-        std::cout << "DebugNtau: " << DebugNtau << std::endl;
         std::cout << "Converged: " << Converged << std::endl;
         std::cout << "Delta: " << Delta << std::endl;
         std::cout << "f is not empty: " << !F.empty() << std::endl;
@@ -204,21 +196,3 @@ inline H5::DataType SimulationConfig::get_hdf5_type<bool>()
     return H5::PredType::NATIVE_HBOOL;
 }
 
-
-/*void readAttribute(H5::H5File& file, const std::string& name, int& value)
-    {
-        H5::Attribute attr = file.openAttribute(name);
-        attr.read(H5::PredType::NATIVE_INT, &value);
-    }
-
-    void readAttribute(H5::H5File& file, const std::string& name, real_t& value)
-    {
-        H5::Attribute attr = file.openAttribute(name);
-        attr.read(H5::PredType::NATIVE_DOUBLE, &value);
-    }
-
-    void readAttribute(H5::H5File& file, const std::string& name, bool& value)
-    {
-        H5::Attribute attr = file.openAttribute(name);
-        attr.read(H5::PredType::NATIVE_HBOOL, &value);
-    }*/
