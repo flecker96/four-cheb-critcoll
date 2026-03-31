@@ -34,6 +34,7 @@ set(SOURCES
     src/SpectralTransformer.cpp
     src/StatePacker.cpp
     src/EOMevaluator.cpp
+    src/Sampler.cpp
 )
 
 add_executable(a ${SOURCES})

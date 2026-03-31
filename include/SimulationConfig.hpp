@@ -15,10 +15,10 @@
 
 /**
  * @struct SimulationConfig
- * @brief Single-simulation configuration (one dimension D, one Ntau, etc.).
+ * @brief Single-simulation configuration (one dimension D, one Nt, etc.).
  *
  * @section fields Key Fields
- * - `Ntau`        : Number of τ samples per period.
+ * - `Nt`        : Number of τ samples per period.
  * - `Nx`          : Number of x samples between [0,1].
  * - `Dim`         : Physical dimension D.
  * - `EpsNewton`   : Newton step damping/regularization.
@@ -26,7 +26,6 @@
  * - `MaxIterNewton` : Maximum Newton iterations.
  * - `Verbose/Debug/Converged` : Execution flags and previous status.
  * - `Delta`       : Echoing period.
- * - `fc/psic/Up`  : Periodic input arrays for boundary expansions.
  */
 struct SimulationConfig
 {
@@ -164,7 +163,7 @@ struct SimulationConfig
         attr.write(type, &value);
     }
 
-    /// Print a human-readable configuration summary to stdout.
+    /// Print configuration summary to stdout.
     void print_config()
     {
         std::cout << "Simulation configuration:" << std::endl;
@@ -174,13 +173,8 @@ struct SimulationConfig
         std::cout << "EpsNewton: " << EpsNewton << std::endl;
         std::cout << "PrecisionNewton: " << PrecisionNewton << std::endl;
         std::cout << "MaxIterNewton: " << MaxIterNewton << std::endl;
-        //std::cout << "Verbose: " << Verbose << std::endl;
         std::cout << "Converged: " << Converged << std::endl;
         std::cout << "Delta: " << Delta << std::endl;
-        //std::cout << "f is not empty: " << !F.empty() << std::endl;
-        //std::cout << "Om is not empty: " << !Om.empty() << std::endl;
-        //std::cout << "Pi is not empty: " << !Pi.empty() << std::endl;
-        //std::cout << "Psi is not empty: " << !Psi.empty() << std::endl;
     }
 };
 

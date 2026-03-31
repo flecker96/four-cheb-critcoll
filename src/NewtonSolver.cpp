@@ -212,25 +212,27 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
         auto toc_inner = std::chrono::high_resolution_clock::now();
 
         vec_real perturbedInput = baseInput;
-        perturbedInput[i] += EpsNewton;
+        real_t scale = std::max(1.0, abs(baseInput[i]));
+
+        //std::cout << scale << std::endl;
+        perturbedInput[i] += EpsNewton * scale;
 
         vec_real perturbedOutput(Nnewton);
         EOM(perturbedInput, perturbedOutput);
 
         for (size_t j=0; j<Nnewton; ++j)
         {
-            jacobian[j][i] = (perturbedOutput[j] - baseOutput[j]) / EpsNewton;
+            jacobian[j][i] = (perturbedOutput[j] - baseOutput[j]) / (EpsNewton * scale);
         }
 
-        if (i%999 == 0)
+        if (i%1000 == 0)
         {
             auto tic_inner = std::chrono::high_resolution_clock::now();
-            std::cout << "Varying parameter: " << i+1 << "/" << Nnewton
-                      << " in " << static_cast<real_t>((tic_inner-toc_inner).count()) / 1e9
+            std::cout << "Varied " << i << "/" << Nnewton
+                      << " parameters. Time per par: " << static_cast<real_t>((tic_inner-toc_inner).count()) / 1e9
                       << " s." << std::endl;
         }
     }
-
 
     Verbose = config.Verbose;
 }

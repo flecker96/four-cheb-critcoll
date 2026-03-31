@@ -351,7 +351,7 @@ void SpectralTransformer::differentiate_x(
     }
 }
 
-
+// double modes in both dimensions, N/2 -> N, M/2 -> M
 void SpectralTransformer::doubleModes(const vec_complex& in, vec_complex& out)
 { 
     std::fill(out.begin(), out.end(), complex_t(0.0, 0.0));
@@ -381,6 +381,38 @@ void SpectralTransformer::doubleModes(const vec_complex& in, vec_complex& out)
                 {
                     out[M*k + i] = 2.0*out[M*k + i]; 
                 }
+        }
+    }
+}
+
+//doubles temporal modes, M -> M, N -> 2N 
+void SpectralTransformer::doubleModes_t(const vec_complex& in, vec_complex& out)
+{ 
+    size_t Ntnew = 2*N;
+    size_t Nxnew = M; 
+
+    if (out.size() != 2*N*M)
+        throw std::runtime_error("doubleModes_t: wrong output size");
+
+    std::fill(out.begin(), out.end(), complex_t(0.0, 0.0));
+
+    //Now fill the vector with the IR modes
+    for (size_t i=0; i<Nxnew; ++i)
+    {
+        //Positive frequencies
+        for (size_t k=0; k<Ntnew/4; ++k)
+        {
+            out[Nxnew*k + i] = in[Nxnew*k + i]; 
+        }
+        
+        //Nyquist
+        out[Nxnew*(Ntnew/4) + i] = 0.5*in[Nxnew*Ntnew/4 + i];
+        out[Nxnew*(3*Ntnew/4) + i] = 0.5*in[Nxnew*Ntnew/4 + i]; 
+
+        //Negative frequencies
+        for (size_t k=Ntnew/4+1; k<Ntnew/2; ++k)
+        {
+            out[Nxnew*(Ntnew/2 + k) + i] = in[Nxnew*k + i]; 
         }
     }
 }

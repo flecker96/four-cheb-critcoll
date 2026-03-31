@@ -75,6 +75,8 @@ class SpectralTransformer
      */
     void doubleModes(const vec_complex& in, vec_complex& out);
 
+    void doubleModes_t(const vec_complex& in, vec_complex& out);
+
     /**
      * @brief Halve Fourier and Chebyshev modes by deleting UV part.
      * @param in  Input coefficients.
