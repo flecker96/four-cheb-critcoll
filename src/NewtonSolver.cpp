@@ -3,7 +3,7 @@
 // Newton–Kantorovich solver for the critical-collapse boundary value problem.
 // Responsibilities:
 //   • Hold simulation config and working buffers (spectral/state/grids).
-//   • 
+//   • Evaluate equations of motion for given field config.
 //   • Assemble finite-difference Jacobian via repeated “shoot” evaluations.
 //   • Solve J·dx = −res with LAPACK (row-major), apply line damping, iterate.
 //==============================================================================
@@ -12,11 +12,10 @@
 
 //------------------------------------------------------------------------------
 // Ctor: cache config scalars & sizes, allocate work arrays, construct helpers.
-// If MPI/Hybrid, also create a contiguous MPI type to send/recv vectors.
 //------------------------------------------------------------------------------
 NewtonSolver::NewtonSolver(SimulationConfig configIn, SimulationConfig& configOut, bool benchmarkIn)
     : config(configIn), result(configOut), Nt(configIn.Nt), Nx(configIn.Nx), Nnewton(configIn.Nt * configIn.Nx/2), maxIts(configIn.MaxIterNewton), 
-    Dim(configIn.Dim), Delta(configIn.Delta), slowErr(configIn.SlowError), EpsNewton(configIn.EpsNewton), TolNewton(configIn.PrecisionNewton),
+    Dim(configIn.Dim), Delta(configIn.Delta), EpsNewton(configIn.EpsNewton), TolNewton(configIn.PrecisionNewton),
     Debug(configIn.Debug), Verbose(configIn.Verbose), Converged(configIn.Converged), benchmark(benchmarkIn), 
     F(configIn.F), Om(configIn.Om), Pi(configIn.Pi), Psi(configIn.Psi),
     packer(configIn.Nt, configIn.Nx, configIn.Dim),
@@ -40,46 +39,43 @@ void NewtonSolver::run(json* benchmark_result)
 {
     if (!Converged)
     {
-        //real_t fac = 1.0, 
         real_t err = 1.0, errOld = 1.0;
-        int mismatch_increase_count {};
 
         generateGrid();
         packer.pack(F, Om, Pi, Psi, in0);            //Build the vector in0 
         in0[3*Nt*Nx/8 + 2] = Delta;                  //Store Delta in slot for Re(Fc_2) (gauged to zero)
-
-        vec_real in0old = in0;
 
         for (size_t its=0; its<maxIts; ++its)
         {
             
             std::cout << "Newton iteration: " << its+1 << std::endl;
             auto toc_outer = std::chrono::high_resolution_clock::now();
-
-            errOld = err;
             
+            errOld = err;
+
             EOM(in0, out0);
            
             err = computeL2Norm(out0);
             std::cout << "Mismatch norm: " << err << std::endl;
+            std::cout << "Delta = " << in0[3*Nt*Nx/8 + 2] << std::endl;
 
             if (err<TolNewton)
             {
                 Converged = true;
+                Delta = in0[3*Nt*Nx/8 + 2];
+                in0[3*Nt*Nx/8 + 2] = 0.0;
+                packer.NewtonToFields(in0, F, Om, Pi, Psi);
                 std::cout << "The solution has converged!" << std::endl << std::endl;
                 writeFinalOutput(its, err);
                 break;
             }
 
-            // Safeguard against divergence
-            if (std::log10(err) > std::log10(errOld)) mismatch_increase_count++; 
-
-            if (mismatch_increase_count >= 5)
+            if (err >= errOld && its > 0)
             {
                 Converged = true;
-                Delta = in0old[3*Nt*Nx/8 + 2];
-                in0old[3*Nt*Nx/8 + 2] = 0.0;
-                packer.NewtonToFields(in0old, F, Om, Pi, Psi);
+                Delta = in0[3*Nt*Nx/8 + 2];
+                in0[3*Nt*Nx/8 + 2] = 0.0;
+                packer.NewtonToFields(in0, F, Om, Pi, Psi);
                 writeFinalOutput(its, errOld);
                 std::cerr << "Mismatch increased – terminating Newton.\n";
                 break;                    
@@ -90,7 +86,7 @@ void NewtonSolver::run(json* benchmark_result)
             assembleJacobian(in0, out0, J);
             
 
-            // Solve J·dx = −res and update input with damping
+            // Solve J·dx = −res and update input
             vec_real dx(Nnewton);
             vec_real rhs = out0;
             std::for_each(rhs.begin(), rhs.end(), [](auto& e){ e *= -1.0; });
@@ -111,15 +107,6 @@ void NewtonSolver::run(json* benchmark_result)
             double errlinsol = computeL2Norm(residual);
             std::cout << "Inverted with error: " << errlinsol << std::endl;
 
-            //slowErr = 0.1;
-            //fac = std::min(1.0, slowErr / err);
-            //fac = 1.0;
-
-            if (std::log10(err) < std::log10(errOld))
-            {
-                in0old = in0;                 // store trial point
-                mismatch_increase_count = 0;
-            }
             
             // Do line search for updating step
             double lambda = 1.0;
@@ -152,13 +139,9 @@ void NewtonSolver::run(json* benchmark_result)
 
         if (!Converged)
         {
-            Converged = false;
-            Delta = in0old[3*Nt*Nx/8 + 2];
-            in0old[3*Nt*Nx/8 + 2] = 0.0;
-            packer.NewtonToFields(in0old, F, Om, Pi, Psi);
-            writeFinalOutput(maxIts, errOld);
+            std::cout << in0[3*Nt*Nx/8 + 2] << std::endl;
             std::cerr << "Newton method did not converge in " << maxIts << " iterations. For dimension: " << Dim << std::endl;
-            //std::exit(EXIT_FAILURE);
+            std::exit(EXIT_FAILURE);
         }
     }
     else
@@ -179,10 +162,9 @@ void NewtonSolver::run(json* benchmark_result)
 
 //------------------------------------------------------------------------------
 // EOM
-// 1) Extract (Up, ψc, fc, Δ) from packed input vector (spectral).
-// 2) Build left/right boundary data (Taylor) and call IRK shooter.
-// 3) Transform mismatch state → fields → pack back to spectral output.
-// If `fieldVals` is provided, the shooter exports intermediate field slices.
+// 1) Extract (F, Om, Pi, Psi, Δ) from packed input vector (spectral).
+// 2) Evaluate EOM and reduce to outputvector (throw away dependent modes and dealias)
+// If `fieldVals` is provided, the shooter exports intermediate field slices. (not working currently)
 //------------------------------------------------------------------------------
 void NewtonSolver::EOM(vec_real& inputVec, vec_real& outputVec, json* fieldVals)
 {
@@ -240,7 +222,7 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
             jacobian[j][i] = (perturbedOutput[j] - baseOutput[j]) / EpsNewton;
         }
 
-        if (i%500 == 0)
+        if (i%999 == 0)
         {
             auto tic_inner = std::chrono::high_resolution_clock::now();
             std::cout << "Varying parameter: " << i+1 << "/" << Nnewton
@@ -308,7 +290,6 @@ void NewtonSolver::writeFinalOutput(size_t newtonIts, real_t mismatchNorm)
 
     result.EpsNewton = EpsNewton;
     result.PrecisionNewton = TolNewton;
-    result.SlowError = slowErr;
     result.MaxIterNewton = maxIts;
     result.IterNewton = newtonIts;
     result.ErrorNorm = mismatchNorm;

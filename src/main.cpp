@@ -4,11 +4,15 @@
 
 int main(){
 
-    std::string inputPath = "../to_hdf5/data.h5";
+    std::string inputPath = "../to_hdf5/data_64_5.5D.h5";
     std::string outputPath = "../to_hdf5/data_out.h5";
 
     SimulationConfig config = SimulationConfig::loadFromHDF5(inputPath);
 
+    config.MaxIterNewton = 100;
+    //config.Dim = 4.0;
+    //config.EpsNewton = 1E-6;
+    config.Converged = false;
     config.print_config();
     /*std::ifstream inFile("../Ftest.txt");
     for (double& val : config.F) {

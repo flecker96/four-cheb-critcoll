@@ -49,7 +49,6 @@ class NewtonSolver
     size_t maxIts;                ///< Maximum Newton iterations.
     real_t Dim;                   ///< Physical spacetime dimension D.
     real_t Delta;                 ///< Echoing period Δ.
-    real_t slowErr;               ///< Accumulated error metric (slowly updated).
     real_t EpsNewton;             ///< Step length damping or regularization.
     real_t TolNewton;             ///< Convergence tolerance on mismatch norm.
 
@@ -68,19 +67,18 @@ class NewtonSolver
     StatePacker packer;               ///< Generates near-boundary Taylor expansions.
     EOMevaluator evaluator;
 
-    /*std::unique_ptr<EOMevaluator> evaluator; ///< Integrator for evolution between boundaries.*/
-
+    
     void generateGrid();
     /**
-     * @brief Perform shooting integration from left/right to mid, produce mismatch.
+     * @brief Evaluate equations of motion for a given configuration.
      * @param inputVec  Newton unknown vector.
-     * @param outputVec Output mismatch vector.
+     * @param outputVec Output residual vector.
      * @param fieldVals Optional JSON container for storing fields along integration.
      */
     void EOM(vec_real& inputVec, vec_real& outputVec, json* fieldVals=nullptr);
 
     /**
-     * @brief Assemble finite-difference Jacobian of mismatch residuals.
+     * @brief Assemble finite-difference Jacobian of residuals.
      * @param baseInput  Current Newton input vector.
      * @param baseOutput Corresponding mismatch vector.
      * @param[out] jacobian Jacobian matrix J = ∂F/∂x.
@@ -106,15 +104,15 @@ class NewtonSolver
   public:
     /**
      * @brief Construct NewtonSolver with simulation config and output path.
-     * @param configIn   SimulationConfig object (Ntau, Dim, Δ, etc.).
-     * @param dataPathIn Base path for output files.
+     * @param configIn   SimulationConfig object (Ntau, Nx, Dim, Δ, etc.).
+     * @param configOut  SimulationConfig object for output.
      * @param benchmarkIn If true, enable benchmark mode.
      */
     NewtonSolver(SimulationConfig configIn, SimulationConfig& configOut, bool benchmarkIn=false);
 
     /**
      * @brief Run Newton solver until convergence or max iterations.
-     * @param benchmark_result Optional JSON to collect benchmark statistics.
+     * @param benchmark_result Optional JSON to collect benchmark statistics. (deprecated)
      * @return JSON result dictionary with fields (Converged, NewtonIts, Delta, etc.).
      */
     void run(json* benchmark_result=nullptr);

@@ -163,7 +163,6 @@ void StatePacker::unpack(const vec_real& vec, vec_complex& Y)
 
 
 
-
 void StatePacker::buildFields(const vec_complex& Yin, real_t Delta, vec_real& F, vec_real& Om, vec_real& Pi, vec_real& Psi, 
                             vec_real& dtF, vec_real& dtOm, vec_real& dtPi, vec_real& dtPsi, 
                             vec_real& dxF, vec_real& dxOm, vec_real& dxPi, vec_real& dxPsi)

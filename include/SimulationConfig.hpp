@@ -23,7 +23,6 @@
  * - `Dim`         : Physical dimension D.
  * - `EpsNewton`   : Newton step damping/regularization.
  * - `PrecisionNewton` : Newton tolerance on residual.
- * - `SlowError`   : Damping in outer Newton loop.
  * - `MaxIterNewton` : Maximum Newton iterations.
  * - `Verbose/Debug/Converged` : Execution flags and previous status.
  * - `Delta`       : Echoing period.
@@ -33,7 +32,7 @@ struct SimulationConfig
 {
     int Nt, Nx;
     real_t Dim;
-    real_t EpsNewton, PrecisionNewton, SlowError;
+    real_t EpsNewton, PrecisionNewton;
     int    MaxIterNewton, IterNewton;
     bool   Verbose, Debug, Converged;
     size_t DebugNx, DebugNtau;
@@ -62,7 +61,6 @@ struct SimulationConfig
         readAttribute(file, "MaxIterNewton", MaxIterNewton);
         readAttribute(file, "EpsNewton", EpsNewton);
         readAttribute(file, "TolNewton", PrecisionNewton);
-        readAttribute(file, "slowErr", SlowError);
         readAttribute(file, "Converged", Converged);
 
         F.resize(Nx * Nt);
@@ -91,9 +89,10 @@ struct SimulationConfig
         H5::H5File file(filename, H5F_ACC_TRUNC);
 
         hsize_t dims[2] = {
-            static_cast<hsize_t>(Nx),
-            static_cast<hsize_t>(Nt)
+            static_cast<hsize_t>(Nt),
+            static_cast<hsize_t>(Nx)
         };
+
         H5::DataSpace dataspace(2, dims);
         H5::DataSpace scalar(H5S_SCALAR);
 
@@ -113,13 +112,23 @@ struct SimulationConfig
         writeAttribute(file, scalar, "Converged", Converged);
         writeAttribute(file, scalar, "mismatchNorm", ErrorNorm);
         writeAttribute(file, scalar, "IterNewton", IterNewton);
+        writeAttribute(file, scalar, "TolNewton", PrecisionNewton);
 
         std::cout << "Output written to file. " << std::endl;
     }
 
-    void readDataset(H5::H5File& file, const std::string& name, std::vector<double>& data)
+    void readDataset(H5::H5File& file, const std::string& name, vec_real& data)
     {
         H5::DataSet dataset = file.openDataSet(name);
+        H5::DataSpace dataspace = dataset.getSpace();
+
+        hsize_t dims[2];
+        dataspace.getSimpleExtentDims(dims);
+
+        if (dims[0] != static_cast<hsize_t>(Nt) || dims[1] != static_cast<hsize_t>(Nx)) {
+            throw std::runtime_error("Dataset shape mismatch in " + name);
+        }
+
         dataset.read(data.data(), H5::PredType::NATIVE_DOUBLE);
     }
 
@@ -134,7 +143,7 @@ struct SimulationConfig
     static void writeDataset(H5::H5File& file,
                               const H5::DataSpace& dataspace,
                               const std::string& name,
-                              const std::vector<double>& data)
+                              const vec_real& data)
     {
         H5::DataSet ds = file.createDataSet(
             name,
@@ -160,19 +169,18 @@ struct SimulationConfig
     {
         std::cout << "Simulation configuration:" << std::endl;
         std::cout << "Ntau: " << Nt << std::endl;
-        std::cout << "Dim: " << Dim << std::endl;
         std::cout << "Nx: " << Nx << std::endl;
+        std::cout << "Dim: " << Dim << std::endl;
         std::cout << "EpsNewton: " << EpsNewton << std::endl;
         std::cout << "PrecisionNewton: " << PrecisionNewton << std::endl;
-        std::cout << "SlowError: " << SlowError << std::endl;
         std::cout << "MaxIterNewton: " << MaxIterNewton << std::endl;
-        std::cout << "Verbose: " << Verbose << std::endl;
+        //std::cout << "Verbose: " << Verbose << std::endl;
         std::cout << "Converged: " << Converged << std::endl;
         std::cout << "Delta: " << Delta << std::endl;
-        std::cout << "f is not empty: " << !F.empty() << std::endl;
-        std::cout << "Om is not empty: " << !Om.empty() << std::endl;
-        std::cout << "Pi is not empty: " << !Pi.empty() << std::endl;
-        std::cout << "Psi is not empty: " << !Psi.empty() << std::endl;
+        //std::cout << "f is not empty: " << !F.empty() << std::endl;
+        //std::cout << "Om is not empty: " << !Om.empty() << std::endl;
+        //std::cout << "Pi is not empty: " << !Pi.empty() << std::endl;
+        //std::cout << "Psi is not empty: " << !Psi.empty() << std::endl;
     }
 };
 
