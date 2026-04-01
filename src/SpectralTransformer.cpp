@@ -2,9 +2,9 @@
 // SpectralTransformer.cpp
 // Thin wrapper around FFTW for periodic spectral transforms and utilities.
 // Features:
-//   • Forward/backward FFTs for real/complex data (FFTW complex-to-complex).
-//   • Spectral differentiation with 2π/period wave numbers (odd Nyquist-safe).
-//   • λ-integration in Fourier space: solve (λ - i m k0) Ĝ = ˆf mode-wise.
+//   • Forward/backward FFTs for complex data (FFTW complex-to-complex).
+//   • Spectral differentiation in t with 2π/period wave numbers (odd Nyquist-safe).
+//   • Spectral differentiation in x with Clenshaw recurrence pattern.
 //   • Mode decimation/expansion (halveModes/doubleModes) for Newton packing.
 //   • Inhomogeneous first-order ODE solve via integrating factor in τ.
 // Notes:
@@ -351,7 +351,6 @@ void SpectralTransformer::differentiate_x(
     }
 }
 
-// double modes in both dimensions, N/2 -> N, M/2 -> M
 void SpectralTransformer::doubleModes(const vec_complex& in, vec_complex& out)
 { 
     std::fill(out.begin(), out.end(), complex_t(0.0, 0.0));
@@ -385,7 +384,6 @@ void SpectralTransformer::doubleModes(const vec_complex& in, vec_complex& out)
     }
 }
 
-//doubles temporal modes, M -> M, N -> 2N 
 void SpectralTransformer::doubleModes_t(const vec_complex& in, vec_complex& out)
 { 
     size_t Ntnew = 2*N;

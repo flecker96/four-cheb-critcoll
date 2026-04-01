@@ -18,9 +18,9 @@ int main(){
     }
 
     //config.Dim = 14.0;
-    confignew.EpsNewton = 1E-8;
+    confignew.EpsNewton = 1E-5;
     confignew.Converged = false;
-    config.PrecisionNewton = 1E-13;
+    config.PrecisionNewton = 1E-2;
     confignew.print_config();
 
     SimulationConfig result(confignew.Nt, confignew.Nx);

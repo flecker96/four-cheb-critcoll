@@ -52,16 +52,14 @@ void EOMevaluator::ComputeResidual(const vec_complex& Yin, const real_t& Delta, 
         for (size_t j=0; j<Nt; ++j)
         {
             FRes[Nx*j + i] = (1.0 - x[i])*zprime[i]*dxF[Nx*j + i] - F[Nx*j + i] - (1.0 + (1.0 - x[i])*F[Nx*j + i])*Om[Nx*j + i] / 2.0;
-            if (i<0) {
-                OmRes[Nx*j + i] = 2.0*x[i]*zprime[i]*dxOm[Nx*j + i] 
+            // last equation of motion, in principle redundant but left here for playing
+            /*OmRes[Nx*j + i] = 2.0*x[i]*zprime[i]*dxOm[Nx*j + i] 
                             + Om[Nx*j + i] * (Dim - 1.0 - x[i]*(Pi[Nx*j + i]*Pi[Nx*j + i] + x[i]*Psi[Nx*j + i]*Psi[Nx*j + i]))
                             + x[i]*Om[Nx*j + i]*Om[Nx*j + i] + (Dim - 3.0)*(Pi[Nx*j + i]*Pi[Nx*j + i] + x[i]*Psi[Nx*j + i]*Psi[Nx*j + i]);
-            }
-            else{
-                OmRes[Nx*j + i] = 2.0*x[i]*zprime[i]*dxOm[Nx*j + i] + dtOm[Nx*j + i] 
-                               - 2.0*(Dim - 3.0)*(1.0 + (1.0 - x[i])*F[Nx*j + i])*Pi[Nx*j + i]*Psi[Nx*j + i] 
-                                + 2.0*Om[Nx*j + i]*(1.0 - x[i]*(1.0 + (1.0 - x[i])*F[Nx*j + i]) * Pi[Nx*j + i] * Psi[Nx*j + i]);
-            }
+            */
+            OmRes[Nx*j + i] = 2.0*x[i]*zprime[i]*dxOm[Nx*j + i] + dtOm[Nx*j + i] 
+                            - 2.0*(Dim - 3.0)*(1.0 + (1.0 - x[i])*F[Nx*j + i])*Pi[Nx*j + i]*Psi[Nx*j + i] 
+                            + 2.0*Om[Nx*j + i]*(1.0 - x[i]*(1.0 + (1.0 - x[i])*F[Nx*j + i]) * Pi[Nx*j + i] * Psi[Nx*j + i]);
             PiRes[Nx*j + i] = 2.0*x[i]*zprime[i]*dxPi[Nx*j + i] + Pi[Nx*j + i] + dtPi[Nx*j + i] 
                                 - (1.0 + (1.0 - x[i])*F[Nx*j + i]) * ((Dim - 1.0 + x[i]*Om[Nx*j + i])*Psi[Nx*j + i] + 2.0*x[i]*zprime[i]*dxPsi[Nx*j + i]);
             PsiRes[Nx*j + i] = 2.0*x[i]*zprime[i]*dxPsi[Nx*j + i] + 2.0*Psi[Nx*j + i] + dtPsi[Nx*j + i]
