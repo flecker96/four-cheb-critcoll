@@ -39,15 +39,16 @@ void NewtonSolver::run(json* benchmark_result)
 {
     if (!Converged)
     {
-        real_t err = 1.0, errOld = 1.0;
+        real_t err = 1.0, errOld = 1.0;              
 
         generateGrid();
         packer.pack(F, Om, Pi, Psi, in0);            //Build the vector in0 
         in0[3*Nt*Nx/8 + 2] = Delta;                  //Store Delta in slot for Re(Fc_2) (gauged to zero)
 
+        vec_real in0old = in0;                       //Save always previous step. in case error increases return in0old
+
         for (size_t its=0; its<maxIts; ++its)
-        {
-            
+        { 
             std::cout << "Newton iteration: " << its+1 << std::endl;
             auto toc_outer = std::chrono::high_resolution_clock::now();
             
@@ -73,9 +74,9 @@ void NewtonSolver::run(json* benchmark_result)
             if (err >= errOld && its > 0)
             {
                 Converged = true;
-                Delta = in0[3*Nt*Nx/8 + 2];
-                in0[3*Nt*Nx/8 + 2] = 0.0;
-                packer.NewtonToFields(in0, F, Om, Pi, Psi);
+                Delta = in0old[3*Nt*Nx/8 + 2];
+                in0old[3*Nt*Nx/8 + 2] = 0.0;
+                packer.NewtonToFields(in0old, F, Om, Pi, Psi);
                 writeFinalOutput(its, errOld);
                 std::cerr << "Mismatch increased – terminating Newton.\n";
                 break;                    
@@ -83,6 +84,8 @@ void NewtonSolver::run(json* benchmark_result)
 
             // Assemble J via finite differences
             mat_real J(Nnewton, vec_real(Nnewton));
+            //EpsNewton = std::max(5E-8, 5E-5 * err);                 //adapt eps according to current residual; decrease during convergence
+            std::cout << "EpsNewton = " << EpsNewton << std::endl;
             assembleJacobian(in0, out0, J);
             
 
@@ -121,13 +124,15 @@ void NewtonSolver::run(json* benchmark_result)
                 EOM(in_trial, out_trial);
                 double normF_trial = computeL2Norm(out_trial);
 
-                //accept value of lambda if residual decreses
-                if (normF_trial < err)  
+                //accept value of lambda if residual decreases
+                if (normF_trial < err * (1.0))  
                     break;
 
                 //otherwise halve lambda
                 lambda *= 0.5; 
             }
+
+            in0old = in0;
 
             for (size_t i=0; i<Nnewton; ++i) in0[i] += lambda * dx[i];
 
@@ -139,7 +144,6 @@ void NewtonSolver::run(json* benchmark_result)
 
         if (!Converged)
         {
-            std::cout << in0[3*Nt*Nx/8 + 2] << std::endl;
             std::cerr << "Newton method did not converge in " << maxIts << " iterations. For dimension: " << Dim << std::endl;
             std::exit(EXIT_FAILURE);
         }
@@ -212,9 +216,9 @@ void NewtonSolver::assembleJacobian(const vec_real& baseInput, const vec_real& b
         auto toc_inner = std::chrono::high_resolution_clock::now();
 
         vec_real perturbedInput = baseInput;
-        real_t scale = std::max(1.0, abs(baseInput[i]));
 
-        //std::cout << scale << std::endl;
+        real_t scale = std::max(1.0, abs(baseInput[i]));
+        
         perturbedInput[i] += EpsNewton * scale;
 
         vec_real perturbedOutput(Nnewton);

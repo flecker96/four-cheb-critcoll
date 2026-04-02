@@ -51,7 +51,6 @@ class NewtonSolver
     real_t Delta;                 ///< Echoing period Δ.
     real_t EpsNewton;             ///< Step length damping or regularization.
     real_t TolNewton;             ///< Convergence tolerance on mismatch norm.
-
     bool Debug;                   ///< Debug flag for verbose diagnostics.
     bool Verbose;                 ///< Verbose printing flag.
     bool Converged;               ///< True if Newton converged.

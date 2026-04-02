@@ -76,16 +76,21 @@ class SpectralTransformer
     void doubleModes(const vec_complex& in, vec_complex& out);
 
     /**
-     * @brief Double only Fourier modes by zero-padding (double resolution).
-     * @param in  Input coefficients.
-     * @param out Output upsampled coefficients.
-     */
-    void doubleModes_t(const vec_complex& in, vec_complex& out);
-
-    /**
      * @brief Halve Fourier and Chebyshev modes by deleting UV part.
      * @param in  Input coefficients.
      * @param out Output upsampled coefficients.
      */
     void halveModes(const vec_complex& in, vec_complex& out);
+
+    /**
+     * @brief Double only Fourier modes by zero-padding (double resolution).
+     * @param in  Input coefficients.
+     * @param out Output upsampled coefficients.
+     */
+
+    //Increase by certain factor
+    void increaseModes_spec(const vec_complex& in, vec_complex& out, real_t fact, real_t facx);
+
+    //Decrease by certain factor
+    void decreaseModes_spec(const vec_complex& in, vec_complex& out, real_t fact, real_t facx);
 };

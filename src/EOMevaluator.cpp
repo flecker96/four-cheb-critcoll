@@ -31,21 +31,6 @@ void EOMevaluator::ComputeResidual(const vec_complex& Yin, const real_t& Delta, 
                         const vec_real& zprime, vec_real& outputVec)
 {
     packer.buildFields(Yin, Delta, F, Om, Pi, Psi, dtF, dtOm, dtPi, dtPsi, dxF, dxOm, dxPi, dxPsi);   
-    
-    /*std::ofstream outFile("Ftest.txt");
-    outFile << std::setprecision(std::numeric_limits<double>::max_digits10);
-    for (double val : F) {
-        outFile << val << "\n";
-    }
-    outFile.close();
-    //for (int j=0; j<Nx; ++j) std::cout << std::setprecision(8) << FRes[j] << "," << std::endl;
-    std::ofstream outFile2("dxFtest.txt");
-    outFile2 << std::setprecision(std::numeric_limits<double>::max_digits10);
-    for (double val : dxF) {
-        outFile2 << val << "\n";
-    }
-    outFile2.close();
-    exit(0);*/
 
     for (size_t i=0; i<Nx; ++i)
     {

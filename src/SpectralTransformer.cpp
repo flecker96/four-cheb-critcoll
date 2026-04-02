@@ -364,7 +364,7 @@ void SpectralTransformer::doubleModes(const vec_complex& in, vec_complex& out)
             out[M*k + i] = in[(M/2)*k + i]; 
         }
         
-        //Nyquist
+        //Nyquist cosine is split into two modes
         out[M*(N/4) + i] = 0.5*in[(M/2)*N/4 + i];
         out[M*(3*N/4) + i] = 0.5*in[(M/2)*N/4 + i]; 
 
@@ -380,37 +380,6 @@ void SpectralTransformer::doubleModes(const vec_complex& in, vec_complex& out)
                 {
                     out[M*k + i] = 2.0*out[M*k + i]; 
                 }
-        }
-    }
-}
-
-void SpectralTransformer::doubleModes_t(const vec_complex& in, vec_complex& out)
-{ 
-    size_t Ntnew = 2*N;
-    size_t Nxnew = M; 
-
-    if (out.size() != 2*N*M)
-        throw std::runtime_error("doubleModes_t: wrong output size");
-
-    std::fill(out.begin(), out.end(), complex_t(0.0, 0.0));
-
-    //Now fill the vector with the IR modes
-    for (size_t i=0; i<Nxnew; ++i)
-    {
-        //Positive frequencies
-        for (size_t k=0; k<Ntnew/4; ++k)
-        {
-            out[Nxnew*k + i] = in[Nxnew*k + i]; 
-        }
-        
-        //Nyquist
-        out[Nxnew*(Ntnew/4) + i] = 0.5*in[Nxnew*Ntnew/4 + i];
-        out[Nxnew*(3*Ntnew/4) + i] = 0.5*in[Nxnew*Ntnew/4 + i]; 
-
-        //Negative frequencies
-        for (size_t k=Ntnew/4+1; k<Ntnew/2; ++k)
-        {
-            out[Nxnew*(Ntnew/2 + k) + i] = in[Nxnew*k + i]; 
         }
     }
 }
@@ -437,11 +406,93 @@ void SpectralTransformer::halveModes(const vec_complex& in, vec_complex& out)
             tmp[(M/2)*k + i] = in[M*(N/2 + k) + i];
         }
 
-        //Multiply highest Chebyshev coefficient by 2 (normalization of series)
+        //Divide highest Chebyshev coefficient by 2 (normalization of series)
         if (i==(M/2-1)){
             for (size_t k=0; k<N/2; ++k)
                 {
                     tmp[(M/2)*k + i] = tmp[(M/2)*k + i] / 2.0; 
+                }
+        }
+    }
+
+    out.swap(tmp);
+}
+
+void SpectralTransformer::increaseModes_spec(const vec_complex& in, vec_complex& out, real_t fact, real_t facx)
+{ 
+    size_t Ntnew = fact * N;
+    size_t Nxnew = facx * M; 
+
+    if (out.size() != Ntnew*Nxnew)
+        throw std::runtime_error("changeModes_spec: wrong output size");
+
+    std::fill(out.begin(), out.end(), complex_t(0.0, 0.0));
+
+    //Now fill the vector with the IR modes
+    for (size_t i=0; i<M; ++i)
+    {
+        //Positive frequencies
+        for (size_t k=0; k<N/2; ++k)
+        {
+            out[Nxnew*k + i] = in[M*k + i]; 
+        }
+        
+        //Nyquist cosine is split into two modes
+        out[Nxnew*(N/2) + i] = 0.5*in[M*N/2 + i];
+        out[Nxnew*(Ntnew - N/2) + i] = 0.5*in[M*N/2 + i]; 
+
+        //Negative frequencies
+        for (size_t k=N/2+1; k<N; ++k)
+        {
+            out[Nxnew * (Ntnew - N + k) + i] = in[M*k + i]; 
+        }
+
+        //Multiply old highest Chebyshev coefficient by 2 (normalization of series)
+        if (i==(M-1)){
+            for (size_t k=0; k<Ntnew; ++k)
+                {
+                    out[Nxnew*k + i] = 2.0*out[Nxnew*k + i]; 
+                }
+        }
+    }
+}
+
+void SpectralTransformer::decreaseModes_spec(const vec_complex& in, vec_complex& out, real_t fact, real_t facx)
+{ 
+    size_t Ntnew = fact * N;
+    size_t Nxnew = facx * M; 
+
+    if (out.size() != Ntnew*Nxnew)
+        throw std::runtime_error("decreaseModes_spec: wrong output size");
+
+    if (Ntnew > N || Nxnew > M)
+        throw std::runtime_error("decreaseModes_spec: fac should be smaller than one");
+
+    vec_complex tmp(Ntnew*Nxnew);
+
+    //Read out IR modes
+    for (size_t i=0; i<Nxnew; ++i)
+    {
+        //Positive frequencies
+        for (size_t k=0; k<Ntnew/2; ++k)
+        {
+            tmp[Nxnew*k + i] = in[M*k + i]; 
+        }
+        
+        //Nyquist
+        tmp[Nxnew*Ntnew/2 + i] = in[M*(Ntnew/2) + i] + in[M*(N - Ntnew/2) + i];
+
+        //Negative frequencies
+        for (size_t k=Ntnew/2+1; k<Ntnew; ++k)
+        {
+            tmp[Nxnew*k + i] = in[M*(N - Ntnew + k) + i];
+        }
+
+        //Divide highest Chebyshev coefficient by 2 (normalization of series)
+        if (i==(Nxnew-1)){
+            for (size_t k=0; k<Ntnew; ++k)
+                {
+                    tmp[Nxnew*k + i] = tmp[Nxnew*k + i] / 2.0; 
                 }
         }
     }

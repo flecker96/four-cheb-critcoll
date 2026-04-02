@@ -92,6 +92,9 @@ bool almost_equal(complex_t a, complex_t b, double tol = 1e-15);
  */
 bool almost_equal(double a, double b, double tol = 1e-15);
 
+
+bool isInteger(real_t x);
+
 /**
  * @brief Print a real-valued vector to stdout.
  */

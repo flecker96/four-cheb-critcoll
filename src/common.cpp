@@ -23,6 +23,12 @@ bool almost_equal(double a, double b, double tol)
     return std::abs(a - b) < tol;
 }
 
+//Check if number is integer
+bool isInteger(real_t x)
+{
+    return std::abs(x - std::round(x)) < 1E-14;
+}
+
 //------------------------------------------------------------------------------
 // Print real vector with fixed precision; break line after every 10 entries.
 //------------------------------------------------------------------------------

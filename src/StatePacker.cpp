@@ -1,10 +1,5 @@
 //==============================================================================
 // StatePacker.cpp
-// Builds spectral state vectors from boundary Taylor data for the DSS problem.
-// - Left expansion (x≈0): 5th-order regular-center Taylor series.
-// - Right expansion (x≈1): 3rd-order series near the self-similar horizon.
-// - Spectral packing/unpacking of odd/even fields (halve/double modes).
-// - Field <-> state-vector conversions and auxiliary constraint solve (IA2).
 // All Fourier ops (FFT, differentiation, inhom solves) are delegated to `fft`.
 //==============================================================================
 
@@ -71,6 +66,9 @@ void StatePacker::pack(
     fft.halveModes(Omtmp, OmF);
     fft.backwardChebHalf(OmF);
 
+    //for (size_t j=0; j<Nt/4+1; ++j) std::cout << std::setprecision(10) << OmF[(Nx/2)*j + 40] << "," << std::endl;
+    //exit(0);
+
     fft.forwardFFT(Psitmp);
     fft.forwardCheb(Psitmp);
     fft.halveModes(Psitmp, PsiF);
@@ -96,15 +94,17 @@ void StatePacker::pack(
             //Om
             vec[2*j + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
             vec[2*j + 1 + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
+            
             //F
             vec[2*j + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].real();
             vec[2*j + 1 + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].imag();
         }
-
+        
         //Nyquist
         vec[1 + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(Nt/4) + i].real();  //Store HF cosine in imaginary part of zero mode
         vec[1 + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(Nt/4) + i].real();
     }
+    
     
 }
 
@@ -134,11 +134,11 @@ void StatePacker::unpack(const vec_real& vec, vec_complex& Y)
                 PsiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + (Nt/4)*i + Nt*Nx/8], vec[2*j+1 + (Nt/4)*i + Nt*Nx/8]);
                 PsiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = std::conj(PsiF[(2*j + 1)*Nx/2 + i]);
 
-                // Om can be done in one go, no seperate regularity condition needed
+                // Om
                 OmF[(2*j)*Nx/2 + i]  = complex_t(vec[2*j + (Nt/4)*i + Nt*Nx/4], vec[2*j+1 + (Nt/4)*i + Nt*Nx/4]);
                 if (j!=0) OmF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(OmF[(2*j)*Nx/2 + i]);
 
-                // i=0 (x=0) is special: use stored value of fc for this
+                // F
                 FF[(2*j)*Nx/2 + i] = complex_t(vec[2*j + (Nt/4)*i + 3*Nt*Nx/8], vec[2*j+1 + (Nt/4)*i + 3*Nt*Nx/8]);
                 if (j!=0) FF[(Nt/2 - 2*j)*Nx/2 + i] = std::conj(FF[(2*j)*Nx/2 + i]);
             }
