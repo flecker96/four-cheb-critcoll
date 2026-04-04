@@ -21,6 +21,7 @@ $$2\Psi + 2y\partial_y\Psi + \partial_\tau\Psi + \left(1+(y-1)F\right)\left(\Ome
 **E5:**
 
 $$2\Omega + 2y\partial_y\Omega + \partial_\tau\Omega + 2(d-3)\left(1+(y-1)F\right)\Pi\Psi + 2y\Omega\left(1+(y-1)F\right)\Pi\Psi = 0$$
+
 see also Eq. (76) in https://arxiv.org/pdf/2602.10185 which the additional the change of variables $f(y)\to F(y)$ where 
 $f(y)=1+(1-y)F(y)$ such that $f(y=1)=1$ manifestly. 
 
