@@ -46,6 +46,8 @@ add_executable(a ${SOURCES})
 
 target_include_directories(a PRIVATE
     include
+    include/Eigen 
+    include/unsupported/Eigen
     ${FFTW_INCLUDE_DIRS}
 )
 

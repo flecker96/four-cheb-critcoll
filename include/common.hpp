@@ -8,7 +8,6 @@
  * This header centralizes:
  *  - Standard library and third-party includes.
  *  - Type aliases for reals, complex numbers, and vectors/matrices.
- *  - Parallelism headers (OpenMP/MPI) enabled via compile-time flags.
  *  - Shared numerical/IO utility functions (approximate equality checks,
  *    printing, writing vectors/matrices, small fitting routines).
  *
@@ -47,20 +46,6 @@
 
 // =========== HDF5 =======================
 #include "H5Cpp.h"
-
-// ========== Parallelism ==========
-#ifdef USE_OPENMP
-#include <omp.h>            ///< OpenMP parallelism
-#endif
-
-#ifdef USE_MPI
-#include <mpi.h>            ///< MPI parallelism
-#endif
-
-#ifdef USE_HYBRID
-#include <mpi.h>
-#include <omp.h>
-#endif
 
 
 // ========== Aliases ===============
@@ -164,3 +149,4 @@ vec_real fit_quadratic_least_squares(const vec_real& x_vals, const vec_real& y_v
  * @return A new vector containing the sampled elements, plus the final element of 'a'.
  */
 vec_real every_nth_element(const vec_real& a, size_t n);
+

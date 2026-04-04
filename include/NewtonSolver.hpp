@@ -39,6 +39,7 @@
  * - Hybrid: combine MPI+OpenMP.
  */
 class NewtonSolver
+
 {
   private:
     // ===== Simulation state =====
@@ -59,9 +60,8 @@ class NewtonSolver
     vec_complex Yin;         ///< Packed state vectors at left/right boundaries.
     bool benchmark;                    ///< If true, run in benchmark mode.
     vec_real F, Om, Pi, Psi;             ///< Boundary input functions (τ-dependent).
-    vec_real fRes, OmRes, PiRes, PsiRes;
-    vec_real xGrid, xGridHalf, z_prime;                    ///< Radial grid points (left → right).
-    vec_real in0, out0;                ///< Working vectors for shooting I/O.
+    vec_real xGrid, z_prime;                    ///< Radial grid points (left → right).
+    vec_real in0, out0, perturbedOutput, perturbedOutputMinus;         ///< Working vectors
     std::filesystem::path baseFolder;  ///< Path where outputs are written.
     StatePacker packer;               ///< Generates near-boundary Taylor expansions.
     EOMevaluator evaluator;
@@ -74,7 +74,7 @@ class NewtonSolver
      * @param outputVec Output residual vector.
      * @param fieldVals Optional JSON container for storing fields along integration.
      */
-    void EOM(vec_real& inputVec, vec_real& outputVec, json* fieldVals=nullptr);
+    void EOM(vec_real& inputVec, vec_real& outputVec, bool print_constr = false);
 
     /**
      * @brief Assemble finite-difference Jacobian of residuals.
@@ -85,13 +85,17 @@ class NewtonSolver
     void assembleJacobian(const vec_real& baseInput, const vec_real& baseOutput,
                           mat_real& jacobian);
 
+
+    void Jv(const vec_real& baseInput, const vec_real& trialInput, const vec_real& baseOutput, vec_real& trialOutput);
+
+
     /**
      * @brief Solve linear system A·dx = rhs.
      * @param[in,out] A   Matrix (modified in-place if LAPACK factorization used).
      * @param[in,out] rhs Right-hand side vector (overwritten with solution).
      * @param[out] dx     Solution increment.
      */
-    void solveLinearSystem(const mat_real& A, vec_real& rhs, vec_real& dx);
+    void solveLinearSystem(const mat_real& A, vec_real& rhs, vec_real& dx, real_t& rcond);
     
     /**
      * @brief Compute L² norm of a vector.
@@ -114,7 +118,7 @@ class NewtonSolver
      * @param benchmark_result Optional JSON to collect benchmark statistics. (deprecated)
      * @return JSON result dictionary with fields (Converged, NewtonIts, Delta, etc.).
      */
-    void run(json* benchmark_result=nullptr);
+    void run(std::string method);
 
     /**
      * @brief Write final converged output and metadata to files.

@@ -15,7 +15,7 @@ class EOMevaluator
     vec_real F, Om, Pi, Psi;
     vec_real dtF, dtOm, dtPi, dtPsi;
     vec_real dxF, dxOm, dxPi, dxPsi;
-    vec_real FRes, OmRes, PiRes, PsiRes;
+    vec_real FRes, OmRes, PiRes, PsiRes, constr, monitor_vec;
 
   public:
 
@@ -23,6 +23,6 @@ class EOMevaluator
     EOMevaluator(int Nt_, int Nx_, real_t Dim_, StatePacker& packer_);
 
     void ComputeResidual(const vec_complex& Yin, const real_t& Delta, const vec_real& x, const vec_real& xprime,  
-                        vec_real& outputVec);
+                        bool monitor, vec_real& outputVec);
    
 };

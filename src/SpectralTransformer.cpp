@@ -23,8 +23,8 @@ SpectralTransformer::SpectralTransformer(size_t N_, size_t M_)
     : N(N_), M(M_)
 {
     
-    fft_data = fftw_alloc_complex(N * M);
-
+    //fft_data = fftw_alloc_complex(N * M);
+    //need only I/O buffers for DCTs because FFT works with pointers
     dct_in  = fftw_alloc_real(N * M);
     dct_out = fftw_alloc_real(N * M);
 
@@ -32,8 +32,8 @@ SpectralTransformer::SpectralTransformer(size_t N_, size_t M_)
     dct_out_halved = fftw_alloc_real(N * M / 4);
 
     // Plan for strided FFT on whole array
-    const int rank = 1;
-    int n[1] = { static_cast<int>(N) };
+    const int rank = 1;  //Dimension of each individual transform
+    int n[1] = { static_cast<int>(N) }; //Length of each FFT
 
     const int howmany = static_cast<int>(M);
 
@@ -45,9 +45,9 @@ SpectralTransformer::SpectralTransformer(size_t N_, size_t M_)
 
     fft_forward_plan = fftw_plan_many_dft(
         rank, n, howmany,
-        fft_data, nullptr,
+        nullptr, nullptr,
         istride, idist,
-        fft_data, nullptr,
+        nullptr, nullptr,
         ostride, odist,
         FFTW_BACKWARD,
         FFTW_ESTIMATE
@@ -55,9 +55,9 @@ SpectralTransformer::SpectralTransformer(size_t N_, size_t M_)
 
     fft_backward_plan = fftw_plan_many_dft(
         rank, n, howmany,
-        fft_data, nullptr,
+        nullptr, nullptr,
         istride, idist,
-        fft_data, nullptr,
+        nullptr, nullptr,
         ostride, odist,
         FFTW_FORWARD,
         FFTW_ESTIMATE
@@ -83,7 +83,7 @@ SpectralTransformer::SpectralTransformer(size_t N_, size_t M_)
         FFTW_ESTIMATE
     );
 
-    // plan for strided DCT of the dealiased array
+    // plan for strided DCT of the dealiased (halved) array
     int n_dct_halved[1] = { static_cast<int>(M/2) };   // DCT length Nx
     const int howmany_dct_halved = static_cast<int>(N/2);  // number of time slices
 
@@ -113,7 +113,7 @@ SpectralTransformer::~SpectralTransformer()
     fftw_destroy_plan(dct_plan_halved);
     fftw_destroy_plan(fft_forward_plan);
     fftw_destroy_plan(fft_backward_plan);
-    fftw_free(fft_data);
+    //fftw_free(fft_data);
     fftw_free(dct_in);
     fftw_free(dct_out);
     fftw_free(dct_in_halved);
@@ -437,9 +437,16 @@ void SpectralTransformer::increaseModes_spec(const vec_complex& in, vec_complex&
             out[Nxnew*k + i] = in[M*k + i]; 
         }
         
-        //Nyquist cosine is split into two modes
-        out[Nxnew*(N/2) + i] = 0.5*in[M*N/2 + i];
-        out[Nxnew*(Ntnew - N/2) + i] = 0.5*in[M*N/2 + i]; 
+        if (fact != 1.0)
+        {
+            //Nyquist cosine is split into two modes
+            out[Nxnew*(N/2) + i] = 0.5*in[M*N/2 + i];
+            out[Nxnew*(Ntnew - N/2) + i] = 0.5*in[M*N/2 + i]; 
+        }
+        else
+        {
+            out[Nxnew*(N/2) + i] = in[M*N/2 + i];
+        }
 
         //Negative frequencies
         for (size_t k=N/2+1; k<N; ++k)
@@ -448,7 +455,7 @@ void SpectralTransformer::increaseModes_spec(const vec_complex& in, vec_complex&
         }
 
         //Multiply old highest Chebyshev coefficient by 2 (normalization of series)
-        if (i==(M-1)){
+        if (i==(M-1) && facx != 1.0){
             for (size_t k=0; k<Ntnew; ++k)
                 {
                     out[Nxnew*k + i] = 2.0*out[Nxnew*k + i]; 
@@ -480,7 +487,14 @@ void SpectralTransformer::decreaseModes_spec(const vec_complex& in, vec_complex&
         }
         
         //Nyquist
-        tmp[Nxnew*Ntnew/2 + i] = in[M*(Ntnew/2) + i] + in[M*(N - Ntnew/2) + i];
+        if (fact != 1.0)
+        { 
+            tmp[Nxnew*Ntnew/2 + i] = in[M*(Ntnew/2) + i] + in[M*(N - Ntnew/2) + i];
+        }
+        else
+        {
+            tmp[Nxnew*Ntnew/2 + i] = in[M*(Ntnew/2) + i];
+        }
 
         //Negative frequencies
         for (size_t k=Ntnew/2+1; k<Ntnew; ++k)
@@ -489,7 +503,7 @@ void SpectralTransformer::decreaseModes_spec(const vec_complex& in, vec_complex&
         }
 
         //Divide highest Chebyshev coefficient by 2 (normalization of series)
-        if (i==(Nxnew-1)){
+        if (i==(Nxnew-1) && facx != 1.0){
             for (size_t k=0; k<Ntnew; ++k)
                 {
                     tmp[Nxnew*k + i] = tmp[Nxnew*k + i] / 2.0; 

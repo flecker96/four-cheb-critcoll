@@ -66,9 +66,6 @@ void StatePacker::pack(
     fft.halveModes(Omtmp, OmF);
     fft.backwardChebHalf(OmF);
 
-    //for (size_t j=0; j<Nt/4+1; ++j) std::cout << std::setprecision(10) << OmF[(Nx/2)*j + 40] << "," << std::endl;
-    //exit(0);
-
     fft.forwardFFT(Psitmp);
     fft.forwardCheb(Psitmp);
     fft.halveModes(Psitmp, PsiF);
@@ -94,7 +91,6 @@ void StatePacker::pack(
             //Om
             vec[2*j + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].real();
             vec[2*j + 1 + (Nt/4)*i + Nt*Nx/4] = OmF[(Nx/2)*(2*j) + i].imag();
-            
             //F
             vec[2*j + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].real();
             vec[2*j + 1 + (Nt/4)*i + 3*Nt*Nx/8] = FF[(Nx/2)*(2*j) + i].imag();
@@ -126,11 +122,10 @@ void StatePacker::unpack(const vec_real& vec, vec_complex& Y)
             for (size_t j=0; j<Nt/8; ++j)
             {
                 // Pi: take values of Z (in x-om space) and build contiguous vector Pi (Nt/2 joined blocks of length Nx/2 each)
-                // i=0 (x=0) is special: use stored value of pic for this
                 PiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + (Nt/4)*i], vec[2*j + 1 + (Nt/4)*i]);
                 PiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = std::conj(PiF[(2*j + 1)*Nx/2 + i]);
 
-                // i=0 (x=0) is special: use stored value of psic for this
+                // Psi
                 PsiF[(2*j + 1)*Nx/2 + i]        = complex_t(vec[2*j + (Nt/4)*i + Nt*Nx/8], vec[2*j+1 + (Nt/4)*i + Nt*Nx/8]);
                 PsiF[(Nt/2 - 2*j - 1)*Nx/2 + i]    = std::conj(PsiF[(2*j + 1)*Nx/2 + i]);
 
