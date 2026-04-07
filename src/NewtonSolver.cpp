@@ -340,8 +340,13 @@ void NewtonSolver::solveLinearSystem(const mat_real& A_in, vec_real& rhs, vec_re
     std::ofstream outfile("null_vector.txt");
     outfile << std::scientific << std::setprecision(16);
     for (int i = 0; i < N; ++i)
-        outfile << VT[(N-1)*N + i] << " " << VT[(N-2)*N + i] << " " << VT[(N-3)*N + i] << "\n";
-    
+    {
+        for (int j = 1; j<41; ++j)
+        {
+            outfile << VT[(N-j)*N + i] << " ";
+        }
+        outfile << "\n";
+    }
     outfile.close();
     std::cout << "Singular values written to file." << std::endl;
     exit(0);*/

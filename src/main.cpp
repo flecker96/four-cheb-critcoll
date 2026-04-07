@@ -5,7 +5,7 @@
 
 int main(){
 
-    std::string inputPath = "../to_hdf5/Nt64/12864_6.1D.h5";
+    std::string inputPath = "../to_hdf5/128128_6D.h5";
     std::string outputPath = "../to_hdf5/data_out.h5";
 
     SimulationConfig configIn = SimulationConfig::loadFromHDF5(inputPath);
