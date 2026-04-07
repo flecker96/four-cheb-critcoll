@@ -100,7 +100,7 @@ void NewtonSolver::run(std::string method)
                 solveLinearSystem(J, rhs, dx, rcond);
 
                 // Print upper bound for relative error in dx, dx/x < rcond * drhs / rhs
-                vec_real residual(Nnewton, 0.0);
+                /*vec_real residual(Nnewton, 0.0);
                 for (size_t i = 0; i < Nnewton; ++i)
                 {
                     real_t sum = 0.0;
@@ -110,7 +110,7 @@ void NewtonSolver::run(std::string method)
                     }
                     residual[i] = sum + out0[i]; 
                 }
-                real_t errlinsol = computeL2Norm(residual);
+                real_t errlinsol = computeL2Norm(residual);*/
                 real_t dxnorm = computeL2Norm(dx);
                 //std::cout << "Inversion error (upper bound): " << rcond * errlinsol / err << std::endl;
                 std::cout << "Condition number: " << 1.0 / rcond << "\n";
@@ -331,17 +331,19 @@ void NewtonSolver::solveLinearSystem(const mat_real& A_in, vec_real& rhs, vec_re
         std::exit(EXIT_FAILURE);
     }
 
-    std::cout << "Smallest singular values: " << "\n";
-    for (int i = N-1; i>0; --i)
-    {
-    std::cout <<  S[i] << "\n";
-    }
+    std::ofstream outfile2("singvals.txt");
+    outfile2 << std::scientific << std::setprecision(16);
+    for (int i = 0; i < N; ++i)
+        outfile2 << S[i] << "\n";
+    outfile2.close();
 
     std::ofstream outfile("null_vector.txt");
     outfile << std::scientific << std::setprecision(16);
     for (int i = 0; i < N; ++i)
-        outfile << VT[(N-2)*N + i] << "\n";
+        outfile << VT[(N-1)*N + i] << " " << VT[(N-2)*N + i] << " " << VT[(N-3)*N + i] << "\n";
+    
     outfile.close();
+    std::cout << "Singular values written to file." << std::endl;
     exit(0);*/
 
     dx = rhs;
