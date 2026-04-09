@@ -17,7 +17,7 @@ pkg_check_modules(FFTW REQUIRED fftw3)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 
 # JSON
-find_package(nlohmann_json REQUIRED)
+#find_package(nlohmann_json REQUIRED)
 
 # LAPACK
 find_package(LAPACK REQUIRED)
@@ -58,7 +58,6 @@ target_include_directories(a PRIVATE
 target_link_libraries(a PRIVATE
     ${FFTW_LIBRARIES}
     HDF5::HDF5
-    nlohmann_json::nlohmann_json
     LAPACK::LAPACK
     lapacke
     ${BLAS_LIBRARIES}
