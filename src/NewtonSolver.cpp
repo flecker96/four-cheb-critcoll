@@ -207,9 +207,18 @@ void NewtonSolver::generateGrid()
     // currently they are mapped to x as x=(1-z) / 2 may be changed according to needs
     for (size_t k = 0; k < Nx; ++k)
     {
+        //real_t yl = 0.001;
+
         real_t z = std::cos(M_PI * k / (static_cast<real_t>(Nx) - 1.0));
         xGrid[k] = (1.0 - z) / 2.0;
         z_prime[k] = - 2.0;
+
+        //xGrid[k] = ((yl - 1.0) * z + 1.0 + yl) / 2.0;
+        //z_prime[k] = 2.0 / (yl - 1.0);
+
+        //xGrid[k] = std::pow((1.0 - z) / 2.0 , 2.0);
+        //z_prime[k] = - 2.0 / (1.0 - z);
+
     }
 }
 

@@ -36,7 +36,7 @@
 #include <thread>
 
 // ========== Third-Party Libraries ==========
-#include <nlohmann/json.hpp> ///< JSON for Modern C++
+//#include <nlohmann/json.hpp> ///< JSON for Modern C++
 
 // ========== LAPACK ==========
 #include <lapacke.h>        ///< LAPACK C interface
@@ -55,7 +55,7 @@ using vec_real   = std::vector<real_t>;        ///< Vector of real values.
 using vec_complex= std::vector<complex_t>;     ///< Vector of complex values.
 using mat_real   = std::vector<std::vector<real_t>>;   ///< Matrix of real values.
 using mat_complex= std::vector<std::vector<complex_t>>;///< Matrix of complex values.
-using json       = nlohmann::json;             ///< JSON type alias.
+//using json       = nlohmann::json;             ///< JSON type alias.
 
 // ============ Common Functions =======
 
