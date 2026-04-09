@@ -43,11 +43,26 @@ $f(y)=1+(1-y)F(y)$ was performed such that $f(y=1)=1$ manifestly.
 - Add full documentation
 
 ## Usage
-
+First, clone to your local machine
+```bash
+git clone https://github.com/flecker96/four-cheb-critcoll.git
+cd four-cheb-critcoll
+```
+Then, update and (if not installed yet) install fftw, LAPACK and HDF5
 ```bash
 sudo apt update
 sudo apt install -y build-essential cmake pkg-config \
     libfftw3-dev liblapacke-dev \
-    libopenmpi-dev openmpi-bin \
-    libomp-dev
-
+    libhdf5-dev
+```
+Build with cmake
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
+and finally, run (currently using sample_data)
+```bash
+./a
+```
