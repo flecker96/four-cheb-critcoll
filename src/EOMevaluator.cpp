@@ -78,12 +78,5 @@ void EOMevaluator::ComputeResidual(const vec_complex& Yin, const real_t& Delta, 
 
     packer.pack(FRes, constr, PiRes, PsiRes, outputVec);
 
-    /*std::ofstream out("test.txt");
-    for (real_t x : FRes) {
-        out << std::setprecision(15) << x << "\n";
-    }
-    out.close();
-    exit(0);*/
-
 }
 

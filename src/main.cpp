@@ -5,16 +5,16 @@
 
 int main(){
 
-    std::string inputPath = "../to_hdf5/singular_vectors/6D/160128_6D.h5";
-    std::string outputPath = "../to_hdf5/singular_vectors/6D/160256_6D.h5";
+    std::string inputPath = "../sample_data/5.5D_Data.h5";
+    std::string outputPath = "../sample_data/data_out.h5";
 
     SimulationConfig configIn = SimulationConfig::loadFromHDF5(inputPath);
 
     //Add(pad with zeros) or delete modes, Ntnew = fact * Nt, Nxnew = facx * Nx
-    real_t fact = 2.0, facx = 1.0;
+    real_t fact = 1.0, facx = 1.0;
     SimulationConfig config = changeModes(configIn, fact, facx);
     
-    //config.Dim = 7.0;
+    config.Dim = 5.5;
     config.EpsNewton = 1E-6;
     config.Converged = false;
     config.PrecisionNewton = 1E-13;

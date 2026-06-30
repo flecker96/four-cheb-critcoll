@@ -295,6 +295,7 @@ void NewtonSolver::solveLinearSystem(const mat_real& A_in, vec_real& rhs, vec_re
     for (size_t i = 0; i < Nnewton; ++i)
         std::memcpy(&A_flat[i * Nnewton], A_in[i].data(), Nnewton * sizeof(real_t));
 
+    // Uncomment this and the block below if you want to compute singular values of J
     //vec_real A_svd = A_flat;
 
     // compute 1-norm of A before dgesv overwrites it with LU factors
@@ -364,7 +365,7 @@ void NewtonSolver::solveLinearSystem(const mat_real& A_in, vec_real& rhs, vec_re
 }
 
 //------------------------------------------------------------------------------
-// solveLinearSystem (Serial)
+// solveLinearSystem (without computing condition number and SVD)
 // Same LAPACK call; row-major dense copy made by memcpy per row.
 //------------------------------------------------------------------------------
 /*void NewtonSolver::solveLinearSystem(const mat_real& A_in, vec_real& rhs, vec_real& dx)
